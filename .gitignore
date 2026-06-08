@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+
+# Local env
+.env
+.env.*
+!.env.example
+
+# Data
+data/incoming/*
+data/processed/*
+!data/incoming/.gitkeep
+!data/processed/.gitkeep
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
