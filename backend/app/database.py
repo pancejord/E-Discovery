@@ -25,7 +25,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def init_db() -> None:
-    from app.models import custodian, document, matter  # noqa: F401
+    from app.models import chunk, custodian, document, matter  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
 

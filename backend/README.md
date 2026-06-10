@@ -25,6 +25,13 @@ The document router is available at both `/documents` and `/api/documents`.
 - `DELETE /documents/{document_id}` - delete the record and stored file.
 
 Uploaded originals are saved under `UPLOAD_DIR`, which defaults to `storage/uploads`.
+Uploads are parsed for supported text sources (`txt`, `md`, `csv`, `pdf`, `docx`, and `eml`) and chunked for search.
+
+## Search API
+
+- `POST /api/search` - search parsed document chunks and return citation-bearing results.
+
+Search uses persisted chunk embeddings for local development. Set `QDRANT_ENABLED=true` to also index chunks into the configured Qdrant collection.
 
 ## Database
 

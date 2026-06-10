@@ -49,7 +49,7 @@ def test_upload_list_detail_and_delete_document(client: TestClient) -> None:
     uploaded = response.json()
     assert uploaded["original_filename"] == "contract.txt"
     assert uploaded["file_type"] == "txt"
-    assert uploaded["processing_status"] == "uploaded"
+    assert uploaded["processing_status"] == "parsed"
     stored_path = Path(uploaded["stored_file_path"])
     assert stored_path.exists()
 
@@ -61,7 +61,18 @@ def test_upload_list_detail_and_delete_document(client: TestClient) -> None:
 
     detail_response = client.get(f"/documents/{uploaded['id']}")
     assert detail_response.status_code == 200
-    assert detail_response.json()["stored_file_path"] == str(stored_path)
+    detail = detail_response.json()
+    assert detail["stored_file_path"] == str(stored_path)
+    assert detail["extracted_text"] == "Example contract text"
+    assert detail["document_type"] == "contract"
+
+    search_response = client.post("/api/search", json={"query": "contract", "limit": 5})
+    assert search_response.status_code == 200
+    search_results = search_response.json()["results"]
+    assert len(search_results) == 1
+    assert search_results[0]["document_id"] == uploaded["id"]
+    assert "contract" in search_results[0]["snippet"].lower()
+    assert search_results[0]["citation"].startswith("contract.txt#chunk-1")
 
     delete_response = client.delete(f"/documents/{uploaded['id']}")
     assert delete_response.status_code == 204
@@ -86,8 +97,11 @@ def test_upload_accepts_existing_matter_and_custodian(client: TestClient) -> Non
 
     assert response.status_code == 200
     detail_response = client.get(f"/documents/{response.json()['id']}")
-    assert detail_response.json()["matter_id"] == matter.id
-    assert detail_response.json()["custodian_id"] == custodian.id
+    detail = detail_response.json()
+    assert detail["matter_id"] == matter.id
+    assert detail["custodian_id"] == custodian.id
+    assert detail["subject"] == "Test"
+    assert detail["document_type"] == "email"
 
 
 def test_upload_rejects_unknown_matter(client: TestClient) -> None:

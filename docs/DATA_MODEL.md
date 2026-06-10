@@ -49,7 +49,14 @@
 - `document_id`
 - `chunk_index`
 - `text`
+- `text_hash`
+- `char_start`
+- `char_end`
+- `token_count`
 - `vector_id`
+- `embedding`
+- `embedding_model`
+- `created_at`
 
 ## Evaluation Run
 

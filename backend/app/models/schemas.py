@@ -51,6 +51,20 @@ class DocumentDetail(DocumentSummary):
     bcc: str | None = None
 
 
+class ChunkRead(BaseModel):
+    id: int
+    document_id: int
+    chunk_index: int
+    text: str
+    char_start: int
+    char_end: int
+    token_count: int
+    vector_id: str | None = None
+    embedding_model: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class DocumentIngestionResult(BaseModel):
     id: int
     original_filename: str
@@ -63,12 +77,13 @@ class DocumentIngestionResult(BaseModel):
 
 class SearchRequest(BaseModel):
     query: str = Field(min_length=1)
-    matter_id: str | None = None
+    matter_id: int | None = None
     limit: int = Field(default=10, ge=1, le=100)
 
 
 class SearchResult(BaseModel):
-    document_id: str
+    document_id: int
+    chunk_id: int
     title: str
     snippet: str
     score: float

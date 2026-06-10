@@ -23,6 +23,105 @@ For each file, use this format:
   Purpose: Why the change was needed.
 ```
 
+## 2026-06-10 - Backend Phase 2 RAG Search Foundation
+
+Area: Backend
+
+Goal: Complete the Phase 1 parsing gaps and begin Phase 2 with chunked, citation-bearing search.
+
+### Files Changed
+
+- `backend/app/core/config.py`
+  Change: Added Qdrant collection, Qdrant enablement, and embedding dimension settings.
+  Purpose: Configure vector indexing while keeping local tests independent from external services.
+
+- `backend/app/models/chunk.py`
+  Change: Added the `DocumentChunk` model.
+  Purpose: Persist searchable text chunks with offsets, hashes, embeddings, and vector ids.
+
+- `backend/app/models/document.py`
+  Change: Added a document-to-chunks relationship.
+  Purpose: Tie chunk lifecycle to source document lifecycle.
+
+- `backend/app/models/__init__.py`
+  Change: Exported `DocumentChunk`.
+  Purpose: Keep model imports consistent across startup, migrations, and tests.
+
+- `backend/app/database.py`
+  Change: Included chunk model loading in local database initialization.
+  Purpose: Ensure the new table is created during lightweight local development.
+
+- `backend/app/models/schemas.py`
+  Change: Added chunk schema and expanded search result fields.
+  Purpose: Return chunk ids, document ids, snippets, scores, and citations from search.
+
+- `backend/app/services/text_extraction.py`
+  Change: Added extraction for text, PDF, DOCX, and EML files.
+  Purpose: Close the Phase 1 parsing gap required before useful RAG search.
+
+- `backend/app/services/chunking.py`
+  Change: Added overlapping text chunk generation.
+  Purpose: Create citation-sized retrieval units from extracted document text.
+
+- `backend/app/services/embeddings.py`
+  Change: Added deterministic local embeddings and cosine similarity.
+  Purpose: Enable repeatable vector-style retrieval without API keys.
+
+- `backend/app/services/vector_store.py`
+  Change: Added optional Qdrant collection setup and point indexing.
+  Purpose: Prepare document chunks for Qdrant-backed retrieval when enabled.
+
+- `backend/app/services/ingestion.py`
+  Change: Wired extraction, metadata mapping, chunking, embeddings, and optional Qdrant indexing into upload ingestion.
+  Purpose: Make uploaded documents immediately searchable.
+
+- `backend/app/services/search.py`
+  Change: Added database-backed chunk retrieval and ranking.
+  Purpose: Replace placeholder search behavior with citation-bearing results.
+
+- `backend/app/api/search.py`
+  Change: Replaced stubbed search response with the retrieval service.
+  Purpose: Expose the Phase 2 RAG foundation through `/api/search`.
+
+- `backend/alembic/versions/0002_document_chunks.py`
+  Change: Added migration for `document_chunks`.
+  Purpose: Version the Phase 2 schema change.
+
+- `backend/tests/test_documents.py`
+  Change: Added assertions for parsing, metadata, and citation search.
+  Purpose: Verify Phase 1 readiness and Phase 2 retrieval behavior.
+
+- `.env.example`
+  Change: Added Qdrant and embedding settings.
+  Purpose: Document root environment configuration for Phase 2.
+
+- `backend/.env.example`
+  Change: Added Qdrant and embedding settings.
+  Purpose: Document backend environment configuration for Phase 2.
+
+- `backend/README.md`
+  Change: Documented parsing and search behavior.
+  Purpose: Help developers exercise the new workflow locally.
+
+- `docs/DATA_MODEL.md`
+  Change: Expanded the chunk model fields.
+  Purpose: Keep the planning docs aligned with the implemented schema.
+
+- `docs/PHASE_2_CHANGES.md`
+  Change: Added Phase 1 audit, Phase 2 implementation summary, changed files, verification plan, and follow-up notes.
+  Purpose: Provide the requested markdown record of changes and their purpose.
+
+### Verification
+
+- Ran `python -m pytest -q`: 4 tests passed.
+- Ran `python -m compileall -q app`.
+- Ran `python -m alembic upgrade head` against a temporary SQLite database.
+
+### Follow-Up Notes
+
+- Direct Qdrant querying can be added after the vector service is part of the expected local runtime.
+- The deterministic embedding provider should be replaced or made configurable when production model-provider decisions are finalized.
+
 ## 2026-06-09 - Backend Phase 1 Foundation
 
 Area: Backend
