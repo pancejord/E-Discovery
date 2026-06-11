@@ -11,6 +11,7 @@ from app.models.document import Document
 from app.models.schemas import DocumentIngestionResult
 from app.services.chunking import chunk_text
 from app.services.embeddings import EMBEDDING_MODEL, embed_text
+from app.services.entity_extraction import process_document_entities
 from app.services.text_extraction import extract_document
 from app.services.vector_store import index_chunk
 from app.utils.file_utils import file_extension, save_upload_file
@@ -72,6 +73,7 @@ async def ingest_upload(
                 index_chunk(document, chunk)
             except Exception:
                 pass
+        process_document_entities(db, document, chunks)
 
     return DocumentIngestionResult(
         id=document.id,

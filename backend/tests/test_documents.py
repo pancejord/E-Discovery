@@ -40,9 +40,13 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Generator[TestCli
 
 
 def test_upload_list_detail_and_delete_document(client: TestClient) -> None:
+    document_text = (
+        "Jane Smith and Acme Corp signed a contract for $12,500 on March 3, 2024 "
+        "under Rule 26."
+    )
     response = client.post(
         "/documents/upload",
-        files={"file": ("contract.txt", b"Example contract text", "text/plain")},
+        files={"file": ("contract.txt", document_text.encode("utf-8"), "text/plain")},
     )
 
     assert response.status_code == 200
@@ -63,7 +67,7 @@ def test_upload_list_detail_and_delete_document(client: TestClient) -> None:
     assert detail_response.status_code == 200
     detail = detail_response.json()
     assert detail["stored_file_path"] == str(stored_path)
-    assert detail["extracted_text"] == "Example contract text"
+    assert detail["extracted_text"] == document_text
     assert detail["document_type"] == "contract"
 
     search_response = client.post("/api/search", json={"query": "contract", "limit": 5})
@@ -73,6 +77,29 @@ def test_upload_list_detail_and_delete_document(client: TestClient) -> None:
     assert search_results[0]["document_id"] == uploaded["id"]
     assert "contract" in search_results[0]["snippet"].lower()
     assert search_results[0]["citation"].startswith("contract.txt#chunk-1")
+
+    entities_response = client.get("/api/entities")
+    assert entities_response.status_code == 200
+    entity_types = {entity["entity_type"] for entity in entities_response.json()}
+    assert {"PERSON", "ORGANIZATION", "MONEY", "DATE", "LEGAL_REFERENCE"} <= entity_types
+
+    acme_response = client.get("/api/entities", params={"q": "acme"})
+    assert acme_response.status_code == 200
+    acme = acme_response.json()[0]
+    assert acme["name"] == "Acme Corp"
+    assert acme["mention_count"] == 1
+
+    acme_detail_response = client.get(f"/api/entities/{acme['id']}")
+    assert acme_detail_response.status_code == 200
+    acme_detail = acme_detail_response.json()
+    assert acme_detail["mentions"][0]["citation"].startswith("contract.txt#chunk-1")
+
+    relationships_response = client.get(f"/api/entities/{acme['id']}/relationships")
+    assert relationships_response.status_code == 200
+    assert any(
+        relationship["relationship_type"] == "mentioned_with"
+        for relationship in relationships_response.json()
+    )
 
     delete_response = client.delete(f"/documents/{uploaded['id']}")
     assert delete_response.status_code == 204
@@ -92,7 +119,15 @@ def test_upload_accepts_existing_matter_and_custodian(client: TestClient) -> Non
     response = client.post(
         "/documents/upload",
         data={"matter_id": str(matter.id), "custodian_id": str(custodian.id)},
-        files={"file": ("email.eml", b"Subject: Test\r\n\r\nBody", "message/rfc822")},
+        files={
+            "file": (
+                "email.eml",
+                b"From: Jane Smith <jane@example.com>\r\n"
+                b"To: John Doe <john@example.com>\r\n"
+                b"Subject: Test\r\n\r\nBody",
+                "message/rfc822",
+            )
+        },
     )
 
     assert response.status_code == 200
@@ -102,6 +137,17 @@ def test_upload_accepts_existing_matter_and_custodian(client: TestClient) -> Non
     assert detail["custodian_id"] == custodian.id
     assert detail["subject"] == "Test"
     assert detail["document_type"] == "email"
+
+    jane_response = client.get("/api/entities", params={"matter_id": matter.id, "q": "jane smith"})
+    assert jane_response.status_code == 200
+    jane = jane_response.json()[0]
+    relationship_response = client.get(f"/api/entities/{jane['id']}/relationships")
+    assert relationship_response.status_code == 200
+    assert any(
+        relationship["relationship_type"] == "communicated_with"
+        and relationship["target_entity_name"] == "John Doe"
+        for relationship in relationship_response.json()
+    )
 
 
 def test_upload_rejects_unknown_matter(client: TestClient) -> None:

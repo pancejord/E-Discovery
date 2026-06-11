@@ -96,10 +96,41 @@ class SearchResponse(BaseModel):
 
 
 class EntitySummary(BaseModel):
-    id: str
+    id: int
+    matter_id: int | None = None
     name: str
     entity_type: str
+    normalized_name: str
     mention_count: int = 0
+
+
+class EntityMentionRead(BaseModel):
+    id: int
+    document_id: int
+    chunk_id: int | None = None
+    mention_text: str
+    char_start: int
+    char_end: int
+    citation: str
+
+    model_config = {"from_attributes": True}
+
+
+class EntityDetail(EntitySummary):
+    mentions: list[EntityMentionRead] = Field(default_factory=list)
+
+
+class RelationshipSummary(BaseModel):
+    id: int
+    matter_id: int | None = None
+    source_entity_id: int
+    source_entity_name: str
+    relationship_type: str
+    target_entity_id: int
+    target_entity_name: str
+    document_id: int | None = None
+    confidence: float
+    evidence: str | None = None
 
 
 class AnalyticsSnapshot(BaseModel):

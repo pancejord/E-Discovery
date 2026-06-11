@@ -33,6 +33,14 @@ Uploads are parsed for supported text sources (`txt`, `md`, `csv`, `pdf`, `docx`
 
 Search uses persisted chunk embeddings for local development. Set `QDRANT_ENABLED=true` to also index chunks into the configured Qdrant collection.
 
+## Entity API
+
+- `GET /api/entities` - list extracted entities with mention counts.
+- `GET /api/entities/{entity_id}` - fetch an entity and its cited mentions.
+- `GET /api/entities/{entity_id}/relationships` - list relationships connected to an entity.
+
+Entity extraction runs during document ingestion for parsed text chunks. The first implementation uses deterministic rules for people, organizations, dates, money, legal references, locations, and email addresses.
+
 ## Database
 
 Set `DATABASE_URL` in `.env` for PostgreSQL. The default application setting uses SQLite for local development when PostgreSQL is not running.

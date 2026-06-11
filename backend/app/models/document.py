@@ -32,3 +32,5 @@ class Document(Base):
     matter = relationship("Matter", back_populates="documents")
     custodian = relationship("Custodian", back_populates="documents")
     chunks = relationship("DocumentChunk", back_populates="document", cascade="all, delete-orphan")
+    entity_mentions = relationship("EntityMention", back_populates="document", cascade="all, delete-orphan")
+    relationships = relationship("Relationship", back_populates="document", cascade="all, delete-orphan")

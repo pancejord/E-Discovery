@@ -32,6 +32,19 @@
 - `name`
 - `entity_type`
 - `normalized_name`
+- `created_at`
+
+## Entity Mention
+
+- `id`
+- `entity_id`
+- `document_id`
+- `chunk_id`
+- `mention_text`
+- `char_start`
+- `char_end`
+- `citation`
+- `created_at`
 
 ## Relationship
 
@@ -42,6 +55,8 @@
 - `target_entity_id`
 - `document_id`
 - `confidence`
+- `evidence`
+- `created_at`
 
 ## Chunk
 

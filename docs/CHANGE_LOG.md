@@ -23,6 +23,85 @@ For each file, use this format:
   Purpose: Why the change was needed.
 ```
 
+## 2026-06-11 - Backend Phase 3 Entity Extraction Foundation
+
+Area: Backend
+
+Goal: Verify Phase 2 and add persistent entity extraction, cited mentions, and first-pass relationship extraction.
+
+### Files Changed
+
+- `backend/app/models/entity.py`
+  Change: Added the `Entity` model.
+  Purpose: Persist normalized named entities by matter and type.
+
+- `backend/app/models/entity_mention.py`
+  Change: Added the `EntityMention` model.
+  Purpose: Store cited entity mentions with document, chunk, and offset context.
+
+- `backend/app/models/relationship.py`
+  Change: Added the `Relationship` model.
+  Purpose: Persist evidence-backed links between entities.
+
+- `backend/app/models/document.py`
+  Change: Added cascading relationships for entity mentions and document-scoped relationships.
+  Purpose: Keep derived Phase 3 data aligned with document deletion.
+
+- `backend/app/models/__init__.py`
+  Change: Exported Phase 3 models.
+  Purpose: Keep model imports consistent for startup, migrations, and tests.
+
+- `backend/app/database.py`
+  Change: Included Phase 3 models during local database initialization.
+  Purpose: Ensure lightweight local development creates the new tables.
+
+- `backend/app/models/schemas.py`
+  Change: Added entity detail, mention, and relationship response schemas.
+  Purpose: Return structured Phase 3 data from the API.
+
+- `backend/app/services/entity_extraction.py`
+  Change: Added rule-based NER, entity upsert, mention persistence, and relationship extraction.
+  Purpose: Implement Phase 3 without requiring an external NLP service.
+
+- `backend/app/services/ingestion.py`
+  Change: Triggered entity processing after chunk creation.
+  Purpose: Make uploaded documents immediately available for entity review.
+
+- `backend/app/api/entities.py`
+  Change: Replaced the placeholder route with entity list, detail, and relationship endpoints.
+  Purpose: Expose persisted entities and relationships through `/api/entities`.
+
+- `backend/alembic/versions/0003_entities_relationships.py`
+  Change: Added migration for entities, entity mentions, and relationships.
+  Purpose: Version the Phase 3 schema.
+
+- `backend/tests/test_documents.py`
+  Change: Added assertions for entity extraction, citations, and relationships.
+  Purpose: Verify Phase 3 behavior through upload ingestion.
+
+- `backend/README.md`
+  Change: Documented entity API endpoints and extraction behavior.
+  Purpose: Help developers exercise Phase 3 locally.
+
+- `docs/DATA_MODEL.md`
+  Change: Added entity mention fields and expanded entity and relationship fields.
+  Purpose: Keep project docs aligned with the implementation.
+
+- `docs/PHASE_3_CHANGES.md`
+  Change: Added the Phase 2 audit, Phase 3 implementation summary, changed files, verification plan, and follow-up notes.
+  Purpose: Provide the requested markdown record of Phase 3 changes.
+
+### Verification
+
+- Ran `python -m pytest -q`: 4 tests passed.
+- Ran `python -m compileall -q app`.
+- Ran `python -m alembic upgrade head` against a temporary SQLite database.
+
+### Follow-Up Notes
+
+- The initial extractor is deterministic and rule-based. Future work can add spaCy, transformer NER, or provider-backed extraction.
+- Relationship extraction currently covers co-mentions and email header communication.
+
 ## 2026-06-10 - Backend Phase 2 RAG Search Foundation
 
 Area: Backend
