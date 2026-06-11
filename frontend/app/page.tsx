@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   Upload,
 } from "lucide-react";
+import Link from "next/link";
 
 const metrics = [
   { label: "Documents", value: "0", hint: "Awaiting ingestion" },
@@ -66,10 +67,13 @@ export default function Home() {
                 <Upload size={18} />
                 Upload
               </button>
-              <button className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold text-ink">
-                <Search size={18} />
-                Search
-              </button>
+              <Link
+                href="/graph"
+                className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold text-ink"
+              >
+                <GitBranch size={18} />
+                Graph
+              </Link>
             </div>
           </div>
 

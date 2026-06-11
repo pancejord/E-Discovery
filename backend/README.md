@@ -41,6 +41,15 @@ Search uses persisted chunk embeddings for local development. Set `QDRANT_ENABLE
 
 Entity extraction runs during document ingestion for parsed text chunks. The first implementation uses deterministic rules for people, organizations, dates, money, legal references, locations, and email addresses.
 
+## Graph API
+
+- `GET /api/graph` - return visualization-ready graph nodes, edges, and metrics.
+- `GET /api/graph/neighborhood/{entity_id}` - return a depth-limited entity neighborhood.
+- `GET /api/graph/path` - return shortest paths between two entities.
+- `GET /api/graph/metrics` - return graph-level counts, density, components, and top entities.
+
+The graph is constructed from persisted entities, mentions, and relationships. It is scoped by optional matter and relationship filters.
+
 ## Database
 
 Set `DATABASE_URL` in `.env` for PostgreSQL. The default application setting uses SQLite for local development when PostgreSQL is not running.

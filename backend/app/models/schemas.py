@@ -133,6 +133,45 @@ class RelationshipSummary(BaseModel):
     evidence: str | None = None
 
 
+class GraphNode(BaseModel):
+    id: int
+    label: str
+    entity_type: str
+    mention_count: int = 0
+    degree: int = 0
+
+
+class GraphEdge(BaseModel):
+    id: str
+    source: int
+    target: int
+    relationship_type: str
+    weight: int = 1
+    confidence: float
+    document_ids: list[int] = Field(default_factory=list)
+    evidence: list[str] = Field(default_factory=list)
+
+
+class GraphMetrics(BaseModel):
+    node_count: int
+    edge_count: int
+    connected_component_count: int
+    density: float
+    top_entities: list[GraphNode] = Field(default_factory=list)
+
+
+class KnowledgeGraphResponse(BaseModel):
+    nodes: list[GraphNode]
+    edges: list[GraphEdge]
+    metrics: GraphMetrics
+
+
+class GraphPathResponse(BaseModel):
+    source_entity_id: int
+    target_entity_id: int
+    paths: list[list[GraphNode]]
+
+
 class AnalyticsSnapshot(BaseModel):
     document_count: int
     entity_count: int

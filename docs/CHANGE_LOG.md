@@ -23,6 +23,75 @@ For each file, use this format:
   Purpose: Why the change was needed.
 ```
 
+## 2026-06-11 - Phase 4 Knowledge Graph Foundation
+
+Area: Backend and Frontend
+
+Goal: Add graph construction, graph queries, and relationship visualization on top of Phase 3 entity and relationship data.
+
+### Files Changed
+
+- `backend/app/models/schemas.py`
+  Change: Added graph node, edge, metrics, graph response, and path response schemas.
+  Purpose: Provide typed API contracts for graph visualization and graph queries.
+
+- `backend/app/services/knowledge_graph.py`
+  Change: Added NetworkX-backed graph construction, edge aggregation, metrics, neighborhood queries, and shortest-path queries.
+  Purpose: Build knowledge graphs from persisted entities and relationships.
+
+- `backend/app/api/graph.py`
+  Change: Added graph, neighborhood, path, and metrics endpoints.
+  Purpose: Expose Phase 4 graph capabilities through FastAPI.
+
+- `backend/app/main.py`
+  Change: Registered the graph router and added local-development CORS middleware.
+  Purpose: Make graph APIs available to the browser frontend.
+
+- `backend/tests/test_graph.py`
+  Change: Added graph endpoint tests.
+  Purpose: Verify visualization data, metrics, neighborhoods, shortest paths, and validation.
+
+- `frontend/lib/api.ts`
+  Change: Added graph types and `getKnowledgeGraph`.
+  Purpose: Give the frontend typed access to `/api/graph`.
+
+- `frontend/components/KnowledgeGraphView.tsx`
+  Change: Added SVG graph visualization with metrics, selection, top entities, refresh, and relationship filtering.
+  Purpose: Deliver the Phase 4 relationship visualization experience.
+
+- `frontend/app/graph/page.tsx`
+  Change: Added the `/graph` route.
+  Purpose: Make the knowledge graph view available in the Next.js app.
+
+- `frontend/app/page.tsx`
+  Change: Added a graph link from the workspace header.
+  Purpose: Make Phase 4 discoverable from the first screen.
+
+- `backend/README.md`
+  Change: Documented graph API endpoints.
+  Purpose: Help developers exercise the Phase 4 backend.
+
+- `frontend/README.md`
+  Change: Documented the graph page.
+  Purpose: Help developers find the Phase 4 frontend view.
+
+- `docs/PHASE_4_CHANGES.md`
+  Change: Added the Phase 4 audit, implementation summary, file list, verification, and follow-up notes.
+  Purpose: Provide a dedicated record of the Phase 4 work.
+
+### Verification
+
+- Ran `python -m pytest -q`: 6 tests passed.
+- Ran `python -m compileall -q app`.
+- Ran `python -m alembic upgrade head` against a temporary SQLite database.
+- Ran `npm run build`.
+- Ran a browser smoke test against `/graph` with temporary sample data: graph rendered with nodes, edges, metrics, selected entity details, and top entities.
+
+### Follow-Up Notes
+
+- The graph is built dynamically from relational data. A cached graph projection can be added later if graph size or latency requires it.
+- Phase 5 can reuse graph metrics for dashboard widgets.
+
 ## 2026-06-11 - Backend Phase 3 Entity Extraction Foundation
 
 Area: Backend
