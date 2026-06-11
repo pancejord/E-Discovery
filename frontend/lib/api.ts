@@ -42,6 +42,44 @@ export type KnowledgeGraph = {
   metrics: GraphMetrics;
 };
 
+export type AnalyticsSnapshot = {
+  document_count: number;
+  entity_count: number;
+  relationship_count: number;
+  file_type_counts: Record<string, number>;
+  custodian_counts: Record<string, number>;
+};
+
+export type AnalyticsBucket = {
+  label: string;
+  count: number;
+};
+
+export type TimelinePoint = {
+  date: string;
+  document_count: number;
+};
+
+export type CommunicationMetric = {
+  source_entity_id: number;
+  source_entity_name: string;
+  target_entity_id: number;
+  target_entity_name: string;
+  message_count: number;
+  document_ids: number[];
+};
+
+export type AnalyticsDashboard = {
+  snapshot: AnalyticsSnapshot;
+  document_timeline: TimelinePoint[];
+  file_type_distribution: AnalyticsBucket[];
+  document_type_distribution: AnalyticsBucket[];
+  entity_type_distribution: AnalyticsBucket[];
+  relationship_type_distribution: AnalyticsBucket[];
+  top_custodians: AnalyticsBucket[];
+  communication_pairs: CommunicationMetric[];
+};
+
 export async function getKnowledgeGraph(relationshipType?: string): Promise<KnowledgeGraph> {
   const params = new URLSearchParams();
   if (relationshipType) {
@@ -53,6 +91,16 @@ export async function getKnowledgeGraph(relationshipType?: string): Promise<Know
   });
   if (!response.ok) {
     throw new Error("Graph request failed");
+  }
+  return response.json();
+}
+
+export async function getAnalyticsDashboard(): Promise<AnalyticsDashboard> {
+  const response = await fetch(`${apiBaseUrl}/api/analytics/dashboard`, {
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error("Analytics dashboard request failed");
   }
   return response.json();
 }

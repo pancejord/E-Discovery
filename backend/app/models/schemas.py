@@ -180,6 +180,36 @@ class AnalyticsSnapshot(BaseModel):
     custodian_counts: dict[str, int]
 
 
+class AnalyticsBucket(BaseModel):
+    label: str
+    count: int
+
+
+class TimelinePoint(BaseModel):
+    date: str
+    document_count: int
+
+
+class CommunicationMetric(BaseModel):
+    source_entity_id: int
+    source_entity_name: str
+    target_entity_id: int
+    target_entity_name: str
+    message_count: int
+    document_ids: list[int] = Field(default_factory=list)
+
+
+class AnalyticsDashboard(BaseModel):
+    snapshot: AnalyticsSnapshot
+    document_timeline: list[TimelinePoint] = Field(default_factory=list)
+    file_type_distribution: list[AnalyticsBucket] = Field(default_factory=list)
+    document_type_distribution: list[AnalyticsBucket] = Field(default_factory=list)
+    entity_type_distribution: list[AnalyticsBucket] = Field(default_factory=list)
+    relationship_type_distribution: list[AnalyticsBucket] = Field(default_factory=list)
+    top_custodians: list[AnalyticsBucket] = Field(default_factory=list)
+    communication_pairs: list[CommunicationMetric] = Field(default_factory=list)
+
+
 class EvaluationMetric(BaseModel):
     task_type: str
     metric_name: str

@@ -68,6 +68,13 @@ export default function Home() {
                 Upload
               </button>
               <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold text-ink"
+              >
+                <BarChart3 size={18} />
+                Dashboard
+              </Link>
+              <Link
                 href="/graph"
                 className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold text-ink"
               >

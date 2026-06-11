@@ -50,6 +50,13 @@ Entity extraction runs during document ingestion for parsed text chunks. The fir
 
 The graph is constructed from persisted entities, mentions, and relationships. It is scoped by optional matter and relationship filters.
 
+## Analytics API
+
+- `GET /api/analytics/snapshot` - return high-level document, entity, relationship, file type, and custodian counts.
+- `GET /api/analytics/dashboard` - return chart-ready dashboard data for document timelines, file types, document classes, entity types, relationship types, custodians, and communication pairs.
+
+Analytics are computed from persisted documents, entities, and relationships. The endpoints support optional `matter_id` filtering.
+
 ## Database
 
 Set `DATABASE_URL` in `.env` for PostgreSQL. The default application setting uses SQLite for local development when PostgreSQL is not running.

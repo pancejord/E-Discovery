@@ -23,6 +23,75 @@ For each file, use this format:
   Purpose: Why the change was needed.
 ```
 
+## 2026-06-11 - Phase 5 Analytics Dashboard
+
+Area: Backend and Frontend
+
+Goal: Replace analytics placeholders with real dashboard data, Plotly charts, timeline analytics, and communication analysis.
+
+### Files Changed
+
+- `backend/app/models/schemas.py`
+  Change: Added analytics bucket, timeline point, communication metric, and dashboard response schemas.
+  Purpose: Provide typed contracts for Phase 5 analytics data.
+
+- `backend/app/services/analytics.py`
+  Change: Added analytics aggregation service.
+  Purpose: Compute dashboard metrics from persisted documents, entities, custodians, and relationships.
+
+- `backend/app/api/analytics.py`
+  Change: Replaced placeholder snapshot values and added `/api/analytics/dashboard`.
+  Purpose: Expose real analytics data to the frontend.
+
+- `backend/tests/test_analytics.py`
+  Change: Added tests for analytics snapshot and dashboard responses.
+  Purpose: Verify counts, distributions, timelines, custodians, and communication pairs.
+
+- `frontend/lib/api.ts`
+  Change: Added analytics types and `getAnalyticsDashboard`.
+  Purpose: Give the frontend typed access to dashboard data.
+
+- `frontend/types/react-plotly.js.d.ts`
+  Change: Added a minimal module declaration for `react-plotly.js`.
+  Purpose: Allow TypeScript to compile Plotly dashboard components.
+
+- `frontend/components/AnalyticsDashboardView.tsx`
+  Change: Added the Plotly analytics dashboard UI.
+  Purpose: Visualize document timelines, distributions, custodians, and communication pairs.
+
+- `frontend/app/dashboard/page.tsx`
+  Change: Replaced the placeholder dashboard with the analytics dashboard component.
+  Purpose: Make `/dashboard` a working Phase 5 surface.
+
+- `frontend/app/page.tsx`
+  Change: Added a dashboard link to the workspace header.
+  Purpose: Make analytics discoverable from the first screen.
+
+- `backend/README.md`
+  Change: Documented analytics API endpoints.
+  Purpose: Help developers exercise the Phase 5 backend.
+
+- `frontend/README.md`
+  Change: Documented the dashboard page.
+  Purpose: Help developers find the Phase 5 frontend view.
+
+- `docs/PHASE_5_CHANGES.md`
+  Change: Added Phase 4 audit, Phase 5 implementation summary, changed files, verification, and follow-up notes.
+  Purpose: Provide a dedicated record of the Phase 5 work.
+
+### Verification
+
+- Ran `python -m pytest -q`: 8 tests passed.
+- Ran `python -m compileall -q app`.
+- Ran `python -m alembic upgrade head` against a temporary SQLite database.
+- Ran `npm run build`.
+- Ran a browser smoke test against `/dashboard` with temporary sample data: dashboard rendered metrics, Plotly chart content, and communication rows.
+
+### Follow-Up Notes
+
+- Analytics are dynamically computed from relational tables. Cached aggregate tables can be added later if dashboard latency becomes an issue.
+- Phase 6 can use these metrics as part of regression fixtures.
+
 ## 2026-06-11 - Phase 4 Knowledge Graph Foundation
 
 Area: Backend and Frontend
