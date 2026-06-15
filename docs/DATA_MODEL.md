@@ -77,7 +77,10 @@
 
 - `id`
 - `matter_id`
+- `dataset_name`
+- `case_id`
 - `task_type`
 - `metric_name`
 - `metric_value`
+- `details`
 - `created_at`

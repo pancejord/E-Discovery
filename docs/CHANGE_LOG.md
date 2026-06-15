@@ -23,6 +23,161 @@ For each file, use this format:
   Purpose: Why the change was needed.
 ```
 
+## 2026-06-15 - Phase 7 AI Integration
+
+Area: Backend and Frontend
+
+Goal: Add the first AI assistant workflow with cited answers, provider configuration, source snippets, and grounding checks.
+
+### Files Changed
+
+- `backend/app/core/config.py`
+  Change: Added AI provider, model, and external-call enablement settings.
+  Purpose: Configure AI behavior without hardcoding provider choices.
+
+- `.env.example`
+  Change: Added AI provider environment variables.
+  Purpose: Document root-level AI configuration.
+
+- `backend/.env.example`
+  Change: Added AI provider environment variables.
+  Purpose: Document backend AI configuration.
+
+- `backend/app/models/schemas.py`
+  Change: Added AI source, answer request, and answer response schemas.
+  Purpose: Provide typed contracts for the assistant API.
+
+- `backend/app/services/ai.py`
+  Change: Added provider abstraction, local grounded provider, optional OpenAI provider, prompt construction, citation enforcement, and grounding evaluation.
+  Purpose: Implement the Phase 7 assistant layer while isolating provider-specific code.
+
+- `backend/app/api/ai.py`
+  Change: Added `POST /api/ai/answer`.
+  Purpose: Expose cited AI answers through FastAPI.
+
+- `backend/app/main.py`
+  Change: Registered the AI router.
+  Purpose: Make assistant endpoints available under `/api/ai`.
+
+- `backend/app/services/evaluation.py`
+  Change: Ignored bracketed citations during answer term extraction.
+  Purpose: Avoid treating citation syntax as unsupported answer claims.
+
+- `backend/tests/test_ai.py`
+  Change: Added tests for cited local answers, no-source behavior, and prompt construction.
+  Purpose: Verify the assistant workflow without external AI calls.
+
+- `frontend/lib/api.ts`
+  Change: Added AI answer types and `askAssistant`.
+  Purpose: Give the frontend typed access to `/api/ai/answer`.
+
+- `frontend/components/InvestigationAssistantView.tsx`
+  Change: Added the assistant UI.
+  Purpose: Let users ask questions and inspect cited answers, sources, and grounding metrics.
+
+- `frontend/app/assistant/page.tsx`
+  Change: Added the `/assistant` route.
+  Purpose: Make the assistant available in the Next.js app.
+
+- `frontend/app/page.tsx`
+  Change: Added an Assistant navigation link.
+  Purpose: Make Phase 7 discoverable from the workspace entry page.
+
+- `backend/README.md`
+  Change: Documented the AI Assistant API and provider configuration.
+  Purpose: Help developers run and configure Phase 7.
+
+- `frontend/README.md`
+  Change: Documented the assistant page.
+  Purpose: Help developers find the Phase 7 frontend view.
+
+- `docs/PHASE_7_CHANGES.md`
+  Change: Added Phase 6 audit, Phase 7 implementation summary, changed files, verification, and follow-up notes.
+  Purpose: Provide the requested markdown record of Phase 7 changes.
+
+### Verification
+
+- Ran `python -m pytest -q`: 13 tests passed.
+- Ran `python -m compileall -q app`.
+- Ran `python -m alembic upgrade head` against a temporary SQLite database.
+- Ran `npm run build`.
+
+### Follow-Up Notes
+
+- External OpenAI calls are disabled by default. The local extractive provider supports safe development and testing.
+- A later pass can add streaming responses, audit logs, and provider-enabled evaluation runs.
+
+## 2026-06-15 - Phase 6 AI Evaluation Framework
+
+Area: Backend and Evaluation
+
+Goal: Add benchmark datasets, retrieval precision/recall metrics, citation quality checks, hallucination-risk tracking, and automated regression tests.
+
+### Files Changed
+
+- `backend/app/models/evaluation.py`
+  Change: Added the `EvaluationRun` model.
+  Purpose: Persist benchmark metric rows with dataset, case, metric, value, details, and timestamp.
+
+- `backend/app/models/__init__.py`
+  Change: Exported `EvaluationRun`.
+  Purpose: Keep model imports consistent for startup, migrations, and tests.
+
+- `backend/app/database.py`
+  Change: Included the evaluation model in local database initialization.
+  Purpose: Ensure the evaluation table is created during lightweight local development.
+
+- `backend/alembic/versions/0004_evaluation_runs.py`
+  Change: Added migration for `evaluation_runs`.
+  Purpose: Version the Phase 6 schema.
+
+- `backend/app/models/schemas.py`
+  Change: Added benchmark, evaluation run, persisted metric, and answer-grounding schemas.
+  Purpose: Provide typed API contracts for Phase 6.
+
+- `backend/app/services/evaluation.py`
+  Change: Added synthetic benchmarks, retrieval evaluation, citation validation, metric persistence, and answer grounding checks.
+  Purpose: Implement deterministic AI evaluation and regression behavior.
+
+- `backend/app/api/evaluation.py`
+  Change: Added benchmark, run, metric history, and answer-check endpoints.
+  Purpose: Expose the evaluation framework through FastAPI.
+
+- `backend/tests/test_evaluation.py`
+  Change: Added tests for benchmark discovery, evaluation runs, persisted metrics, citation validity, and unsupported answer terms.
+  Purpose: Verify Phase 6 behavior through public API endpoints.
+
+- `data/samples/evaluation_benchmarks.json`
+  Change: Added synthetic retrieval and citation benchmark cases.
+  Purpose: Provide a readable benchmark fixture for regression testing.
+
+- `data/samples/README.md`
+  Change: Documented the benchmark fixture.
+  Purpose: Keep sample-data guidance clear.
+
+- `backend/README.md`
+  Change: Documented evaluation API endpoints.
+  Purpose: Help developers exercise the Phase 6 backend.
+
+- `docs/DATA_MODEL.md`
+  Change: Expanded evaluation run fields.
+  Purpose: Keep the planning data model aligned with the implemented schema.
+
+- `docs/PHASE_6_CHANGES.md`
+  Change: Added Phase 5 audit, Phase 6 implementation summary, changed files, verification, and follow-up notes.
+  Purpose: Provide the requested markdown record of Phase 6 changes.
+
+### Verification
+
+- Ran `python -m pytest -q`: 10 tests passed.
+- Ran `python -m compileall -q app`.
+- Ran `python -m alembic upgrade head` against a temporary SQLite database.
+
+### Follow-Up Notes
+
+- The first evaluator is deterministic and local. Future work can add model-assisted judging once provider and data-handling choices are finalized.
+- Additional benchmark cases should be added as synthetic productions mature.
+
 ## 2026-06-11 - Phase 5 Analytics Dashboard
 
 Area: Backend and Frontend

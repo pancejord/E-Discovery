@@ -211,7 +211,74 @@ class AnalyticsDashboard(BaseModel):
 
 
 class EvaluationMetric(BaseModel):
+    id: int | None = None
+    matter_id: int | None = None
+    dataset_name: str | None = None
+    case_id: str | None = None
     task_type: str
     metric_name: str
     metric_value: float
     created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class BenchmarkCase(BaseModel):
+    id: str
+    dataset_name: str
+    task_type: str
+    query: str
+    expected_terms: list[str] = Field(default_factory=list)
+    minimum_citation_count: int = 1
+
+
+class EvaluationRunRequest(BaseModel):
+    matter_id: int | None = None
+    dataset_name: str = "phase6_synthetic_retrieval"
+    limit: int = Field(default=10, ge=1, le=50)
+
+
+class EvaluationRunResponse(BaseModel):
+    dataset_name: str
+    matter_id: int | None = None
+    metrics: list[EvaluationMetric] = Field(default_factory=list)
+
+
+class HallucinationCheckRequest(BaseModel):
+    answer: str = Field(min_length=1)
+    citations: list[str] = Field(default_factory=list)
+
+
+class HallucinationCheckResponse(BaseModel):
+    supported_terms: list[str] = Field(default_factory=list)
+    unsupported_terms: list[str] = Field(default_factory=list)
+    citation_count: int
+    valid_citation_count: int
+    unsupported_term_rate: float
+    hallucination_risk_score: float
+
+
+class AISource(BaseModel):
+    document_id: int
+    chunk_id: int
+    title: str
+    snippet: str
+    score: float
+    citation: str
+
+
+class AIAnswerRequest(BaseModel):
+    question: str = Field(min_length=1)
+    matter_id: int | None = None
+    limit: int = Field(default=5, ge=1, le=20)
+
+
+class AIAnswerResponse(BaseModel):
+    question: str
+    answer: str
+    provider: str
+    model: str | None = None
+    provider_enabled: bool
+    citations: list[str] = Field(default_factory=list)
+    sources: list[AISource] = Field(default_factory=list)
+    grounding: HallucinationCheckResponse

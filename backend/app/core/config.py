@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     qdrant_enabled: bool = False
     embedding_dimension: int = 384
     openai_api_key: str | None = None
+    ai_provider: str = "local"
+    ai_model: str = "gpt-4.1-mini"
+    ai_external_enabled: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

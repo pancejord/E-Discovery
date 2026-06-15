@@ -33,6 +33,12 @@ Uploads are parsed for supported text sources (`txt`, `md`, `csv`, `pdf`, `docx`
 
 Search uses persisted chunk embeddings for local development. Set `QDRANT_ENABLED=true` to also index chunks into the configured Qdrant collection.
 
+## AI Assistant API
+
+- `POST /api/ai/answer` - answer a question from retrieved document chunks with citations, source snippets, and grounding signals.
+
+The assistant uses local extractive grounded answers by default. Set `AI_PROVIDER=openai`, `AI_EXTERNAL_ENABLED=true`, `AI_MODEL`, and `OPENAI_API_KEY` to enable external model generation.
+
 ## Entity API
 
 - `GET /api/entities` - list extracted entities with mention counts.
@@ -56,6 +62,15 @@ The graph is constructed from persisted entities, mentions, and relationships. I
 - `GET /api/analytics/dashboard` - return chart-ready dashboard data for document timelines, file types, document classes, entity types, relationship types, custodians, and communication pairs.
 
 Analytics are computed from persisted documents, entities, and relationships. The endpoints support optional `matter_id` filtering.
+
+## Evaluation API
+
+- `GET /api/evaluation/benchmarks` - list synthetic benchmark cases.
+- `POST /api/evaluation/run` - run retrieval precision, recall, citation coverage, and pass/fail benchmark checks.
+- `GET /api/evaluation/metrics` - list persisted evaluation metric rows.
+- `POST /api/evaluation/check-answer` - compare an answer against cited chunks and return grounding risk signals.
+
+The first evaluation framework is deterministic and local. It does not call external AI providers, which keeps regression tests repeatable.
 
 ## Database
 

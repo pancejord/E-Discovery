@@ -4,6 +4,7 @@ from app.models.chunk import DocumentChunk
 from app.models.document import Document
 from app.models.entity import Entity
 from app.models.entity_mention import EntityMention
+from app.models.evaluation import EvaluationRun
 from app.models.matter import Matter
 from app.models.relationship import Relationship
 
@@ -13,6 +14,7 @@ __all__ = [
     "DocumentChunk",
     "Entity",
     "EntityMention",
+    "EvaluationRun",
     "Matter",
     "Relationship",
 ]

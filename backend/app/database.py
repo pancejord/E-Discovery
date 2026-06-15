@@ -31,6 +31,7 @@ def init_db() -> None:
         document,
         entity,
         entity_mention,
+        evaluation,
         matter,
         relationship,
     )

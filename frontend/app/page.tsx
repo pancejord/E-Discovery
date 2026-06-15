@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Bot,
   FileSearch,
   GitBranch,
   Search,
@@ -67,6 +68,13 @@ export default function Home() {
                 <Upload size={18} />
                 Upload
               </button>
+              <Link
+                href="/assistant"
+                className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold text-ink"
+              >
+                <Bot size={18} />
+                Assistant
+              </Link>
               <Link
                 href="/dashboard"
                 className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold text-ink"

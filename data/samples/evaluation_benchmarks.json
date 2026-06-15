@@ -1,0 +1,27 @@
+{
+  "dataset_name": "phase6_synthetic_retrieval",
+  "description": "Synthetic retrieval and citation evaluation cases for local regression testing.",
+  "cases": [
+    {
+      "id": "contract-money-rule",
+      "task_type": "retrieval",
+      "query": "contract dollar amount and Rule 26",
+      "expected_terms": ["contract", "$12,500", "Rule 26"],
+      "minimum_citation_count": 1
+    },
+    {
+      "id": "email-communication",
+      "task_type": "retrieval",
+      "query": "Jane Smith email John Doe update",
+      "expected_terms": ["Jane Smith", "John Doe", "update"],
+      "minimum_citation_count": 1
+    },
+    {
+      "id": "timeline-date",
+      "task_type": "retrieval",
+      "query": "March 3 2024 New York meeting",
+      "expected_terms": ["March 3, 2024", "New York"],
+      "minimum_citation_count": 1
+    }
+  ]
+}

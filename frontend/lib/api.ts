@@ -80,6 +80,35 @@ export type AnalyticsDashboard = {
   communication_pairs: CommunicationMetric[];
 };
 
+export type AISource = {
+  document_id: number;
+  chunk_id: number;
+  title: string;
+  snippet: string;
+  score: number;
+  citation: string;
+};
+
+export type GroundingSignal = {
+  supported_terms: string[];
+  unsupported_terms: string[];
+  citation_count: number;
+  valid_citation_count: number;
+  unsupported_term_rate: number;
+  hallucination_risk_score: number;
+};
+
+export type AIAnswer = {
+  question: string;
+  answer: string;
+  provider: string;
+  model: string | null;
+  provider_enabled: boolean;
+  citations: string[];
+  sources: AISource[];
+  grounding: GroundingSignal;
+};
+
 export async function getKnowledgeGraph(relationshipType?: string): Promise<KnowledgeGraph> {
   const params = new URLSearchParams();
   if (relationshipType) {
@@ -101,6 +130,18 @@ export async function getAnalyticsDashboard(): Promise<AnalyticsDashboard> {
   });
   if (!response.ok) {
     throw new Error("Analytics dashboard request failed");
+  }
+  return response.json();
+}
+
+export async function askAssistant(question: string, limit = 5): Promise<AIAnswer> {
+  const response = await fetch(`${apiBaseUrl}/api/ai/answer`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question, limit }),
+  });
+  if (!response.ok) {
+    throw new Error("AI answer request failed");
   }
   return response.json();
 }
