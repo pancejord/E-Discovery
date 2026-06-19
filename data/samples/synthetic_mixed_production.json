@@ -1,0 +1,36 @@
+{
+  "dataset_name": "phase8_synthetic_mixed_production",
+  "description": "Synthetic legal/eDiscovery production for retrieval, answer grounding, and negative-answer evaluation. No real client data.",
+  "documents": [
+    {
+      "filename": "atlas-northwind-amendment.txt",
+      "document_type": "contract",
+      "custodian": "Maria Chen",
+      "text": "Amendment No. 2 between Atlas Components and Northwind Systems sets a payment cap of $87,500 for implementation support. Section 4.3 requires written notice before delay fees can be assessed."
+    },
+    {
+      "filename": "delay-notice-email.eml",
+      "document_type": "email",
+      "custodian": "Maria Chen",
+      "text": "From: Maria Chen <maria.chen@example.com>\r\nTo: Daniel Ortiz <daniel.ortiz@example.com>\r\nDate: Mon, 14 Apr 2025 09:12:00 -0400\r\nSubject: Warehouse migration delay notice\r\n\r\nDaniel, this is the delay notice for the warehouse migration. Northwind expects a two-week slip but has not agreed to any fraud allegation."
+    },
+    {
+      "filename": "invoice-1042.txt",
+      "document_type": "invoice",
+      "custodian": "Daniel Ortiz",
+      "text": "Invoice INV-1042 includes a disputed line item for expedited review in the amount of $18,400. Atlas marked the expedited review charge as disputed pending backup documentation."
+    },
+    {
+      "filename": "rfp-response-007.txt",
+      "document_type": "discovery_response",
+      "custodian": "Litigation Support",
+      "text": "Response to Request for Production No. 7: Atlas will produce Maria Chen's Slack export for the warehouse migration channel, subject to privilege review and agreed search terms."
+    },
+    {
+      "filename": "legal-risk-memo.txt",
+      "document_type": "legal_memo",
+      "custodian": "Priya Shah",
+      "text": "Legal memo: The principal contractual risk is uncapped implementation delay fees if written notice under Section 4.3 is deemed sufficient. The current record does not establish that Northwind admitted liability for fraud."
+    }
+  ]
+}

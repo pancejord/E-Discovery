@@ -1,0 +1,79 @@
+{
+  "datasets": [
+    {
+      "dataset_name": "phase6_synthetic_retrieval",
+      "description": "Small synthetic retrieval and citation evaluation cases for local regression testing.",
+      "cases": [
+        {
+          "id": "contract-money-rule",
+          "task_type": "retrieval",
+          "query": "contract dollar amount and Rule 26",
+          "expected_terms": ["contract", "$12,500", "Rule 26"],
+          "minimum_citation_count": 1
+        },
+        {
+          "id": "email-communication",
+          "task_type": "retrieval",
+          "query": "Jane Smith email John Doe update",
+          "expected_terms": ["Jane Smith", "John Doe", "update"],
+          "minimum_citation_count": 1
+        },
+        {
+          "id": "timeline-date",
+          "task_type": "retrieval",
+          "query": "March 3 2024 New York meeting",
+          "expected_terms": ["March 3, 2024", "New York"],
+          "minimum_citation_count": 1
+        }
+      ]
+    },
+    {
+      "dataset_name": "phase8_synthetic_mixed_production",
+      "description": "Richer synthetic eDiscovery production covering contracts, emails, invoices, discovery responses, legal analysis, and negative answer checks.",
+      "cases": [
+        {
+          "id": "contract-amendment-payment-cap",
+          "task_type": "retrieval",
+          "query": "amendment payment cap Atlas Northwind 87500",
+          "expected_terms": ["Atlas Components", "Northwind Systems", "$87,500", "Amendment No. 2"],
+          "minimum_citation_count": 1
+        },
+        {
+          "id": "email-notice-delay",
+          "task_type": "retrieval",
+          "query": "email notice delay April 14 warehouse migration",
+          "expected_terms": ["April 14, 2025", "warehouse migration", "delay notice"],
+          "minimum_citation_count": 1
+        },
+        {
+          "id": "invoice-disputed-line-item",
+          "task_type": "retrieval",
+          "query": "invoice disputed line item expedited review 18400",
+          "expected_terms": ["INV-1042", "$18,400", "expedited review"],
+          "minimum_citation_count": 1
+        },
+        {
+          "id": "discovery-response-custodian",
+          "task_type": "retrieval",
+          "query": "discovery response custodian Maria Chen Slack export",
+          "expected_terms": ["Maria Chen", "Slack export", "Request for Production No. 7"],
+          "minimum_citation_count": 1
+        },
+        {
+          "id": "legal-memo-risk",
+          "task_type": "answer",
+          "query": "What contractual risk did the legal memo identify?",
+          "expected_terms": ["uncapped implementation delay fees", "written notice", "Section 4.3"],
+          "minimum_citation_count": 1
+        },
+        {
+          "id": "negative-admission-liability",
+          "task_type": "answer",
+          "query": "Did Northwind admit liability for fraud?",
+          "expected_terms": ["available documents do not establish"],
+          "minimum_citation_count": 0
+        }
+      ]
+    }
+  ]
+}
