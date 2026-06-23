@@ -32,15 +32,17 @@ The codebase is ahead of some planning docs. In particular, `docs/PHASE_7_PLAN.m
    - Database-backed search remains the fallback path.
    - Remaining work: add Docker-backed Qdrant tests and compare ranking quality against local retrieval.
 
-5. Add authentication and authorization. Status: scaffold implemented.
-   - Optional API-key authentication can be enabled with `AUTH_ENABLED=true` and `API_KEYS`.
-   - Matter access checks are now threaded through core routes, including graph neighborhood/path requests.
-   - Remaining work: replace the API-key scaffold with real users/roles and enforce user-to-matter permissions.
+5. Add authentication and authorization. Status: first pass implemented.
+   - Optional authentication can be enabled with `AUTH_ENABLED=true`.
+   - `X-API-Key` values now resolve to persisted users through `users.api_key_hash`.
+   - Users have roles, and non-admin users are limited to matters listed in `matter_memberships`.
+   - Remaining work: add user/membership management UI, key rotation, request metadata, and production identity-provider integration.
 
 6. Add audit logging. Status: first pass implemented.
    - Audit events are recorded for matter/custodian changes, document upload/view/delete, search, AI answers, and evaluation checks.
-   - The audit API supports filtering by matter, document, and action.
-   - Remaining work: expand audit coverage and add retention/export policies.
+   - The audit API supports filtering by actor, action, matter, document, and date range.
+   - Audit events can be exported as CSV or JSON, reviewed in `/audit`, and purged with `AUDIT_RETENTION_DAYS`.
+   - Remaining work: schedule retention, add request IDs/client IPs, and enrich lower-level indexing failure context.
 
 ## AI And Evaluation Work
 
@@ -119,9 +121,7 @@ The codebase is ahead of some planning docs. In particular, `docs/PHASE_7_PLAN.m
 ## Security And Data Handling
 
 1. Update `docs/SECURITY_AND_DATA_HANDLING.md`.
-   - Document exactly what content is sent to external AI providers.
-   - Document how to disable external calls.
-   - Add guidance for privileged, confidential, and client data.
+   - Status: updated with local/external AI modes, external payload guidance, disable switches, matter isolation, audit coverage, retention, and sensitive-data guidance.
 
 2. Keep external AI disabled by default.
    - Current behavior is correct: local mode is default, OpenAI requires explicit configuration.
@@ -198,10 +198,9 @@ The previous high-priority build order has been completed at first-pass/prototyp
 
 ## Suggested Next Build Order
 
-1. Add real users, roles, and user-to-matter permission mapping.
-2. Add audit retention/export policy and broader audit review UI.
-3. Add Docker-backed Qdrant integration tests.
-4. Add saved searches and advanced search filters.
-5. Add a frontend evaluation dashboard for benchmark and answer-quality history.
-6. Replace the simple graph layout with a force-directed or clustered layout.
-7. Add true OCR execution and binary attachment extraction.
+1. Add user/membership management UI and key rotation.
+2. Add Docker-backed Qdrant integration tests.
+3. Add saved searches and advanced search filters.
+4. Add a frontend evaluation dashboard for benchmark and answer-quality history.
+5. Replace the simple graph layout with a force-directed or clustered layout.
+6. Add true OCR execution and binary attachment extraction.

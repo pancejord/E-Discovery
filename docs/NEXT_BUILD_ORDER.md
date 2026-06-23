@@ -2,6 +2,8 @@
 
 Date: 2026-06-19
 
+Update 2026-06-21: Build-order steps 1 through 4 have been completed at first-pass hardening level. The frontend build is verified, persisted users/roles/matter memberships are implemented, security/data-handling docs are updated, and audit filtering/export/retention plus a review UI are in place. The next highest-priority item is Docker-backed Qdrant integration testing.
+
 ## Current Position
 
 The project is a strong Phase 7 prototype. The core product loop now exists:

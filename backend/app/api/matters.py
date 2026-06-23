@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.auth import Actor, get_actor, require_matter_access
+from app.core.auth import Actor, accessible_matter_ids, get_actor, require_matter_access
 from app.database import get_db
 from app.models.matter import Matter
 from app.models.schemas import MatterCreate, MatterRead, MatterUpdate
@@ -21,6 +21,9 @@ def list_matters(
     offset: int = 0,
 ) -> list[Matter]:
     statement = select(Matter)
+    matter_ids = accessible_matter_ids(db, actor)
+    if matter_ids is not None:
+        statement = statement.where(Matter.id.in_(matter_ids))
     if q:
         normalized = f"%{q.lower()}%"
         statement = statement.where(Matter.name.ilike(normalized))
@@ -59,7 +62,7 @@ def get_matter(
     db: Session = Depends(get_db),
     actor: Actor = Depends(get_actor),
 ) -> Matter:
-    require_matter_access(actor, matter_id)
+    require_matter_access(db, actor, matter_id)
     matter = db.get(Matter, matter_id)
     if matter is None:
         raise HTTPException(status_code=404, detail="Matter not found")
@@ -73,7 +76,7 @@ def update_matter(
     db: Session = Depends(get_db),
     actor: Actor = Depends(get_actor),
 ) -> Matter:
-    require_matter_access(actor, matter_id)
+    require_matter_access(db, actor, matter_id)
     matter = db.get(Matter, matter_id)
     if matter is None:
         raise HTTPException(status_code=404, detail="Matter not found")

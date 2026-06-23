@@ -18,3 +18,4 @@ class Matter(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     documents = relationship("Document", back_populates="matter")
+    memberships = relationship("MatterMembership", back_populates="matter", cascade="all, delete-orphan")

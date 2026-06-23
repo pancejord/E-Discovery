@@ -134,8 +134,18 @@ class OpenAIProvider(AIProvider):
             return ProviderDisabledFallback().generate_answer(question, sources)
 
 
-def answer_question(db: Session, request: AIAnswerRequest) -> AIAnswerResponse:
-    search_results = search_chunks(db, request.question, matter_id=request.matter_id, limit=request.limit)
+def answer_question(
+    db: Session,
+    request: AIAnswerRequest,
+    matter_ids: list[int] | None = None,
+) -> AIAnswerResponse:
+    search_results = search_chunks(
+        db,
+        request.question,
+        matter_id=request.matter_id,
+        matter_ids=matter_ids,
+        limit=request.limit,
+    )
     sources = [_source_from_result(result) for result in search_results if result.citation]
     provider = _provider()
     answer = _ensure_citations(provider.generate_answer(request.question, sources), sources)

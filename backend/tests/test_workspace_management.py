@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.config import settings
+from app.core.auth import hash_api_key
 from app.database import Base, get_db
 from app.main import app
+from app.models import Role, User
 
 
 @pytest.fixture()
@@ -63,8 +65,23 @@ def test_matter_and_custodian_management_create_audit_events(client: TestClient)
 
 
 def test_api_key_auth_can_be_enabled(monkeypatch: pytest.MonkeyPatch, client: TestClient) -> None:
+    db = next(app.dependency_overrides[get_db]())
+    role = Role(name="admin", is_admin=True)
+    db.add(role)
+    db.commit()
+    db.refresh(role)
+    db.add(
+        User(
+            email="admin@example.com",
+            display_name="Admin",
+            api_key_hash=hash_api_key("secret-key"),
+            role_id=role.id,
+        )
+    )
+    db.commit()
+    db.close()
+
     monkeypatch.setattr(settings, "auth_enabled", True)
-    monkeypatch.setattr(settings, "api_keys", "secret-key")
 
     unauthorized = client.get("/api/matters")
     assert unauthorized.status_code == 401

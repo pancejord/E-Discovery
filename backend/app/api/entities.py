@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.core.auth import Actor, get_actor, require_matter_access
+from app.core.auth import Actor, accessible_matter_ids, get_actor, require_matter_access
 from app.database import get_db
 from app.models.entity import Entity
 from app.models.entity_mention import EntityMention
@@ -22,7 +22,8 @@ def list_entities(
     offset: int = 0,
     actor: Actor = Depends(get_actor),
 ) -> list[EntitySummary]:
-    require_matter_access(actor, matter_id)
+    require_matter_access(db, actor, matter_id)
+    matter_ids = accessible_matter_ids(db, actor)
     mention_counts = (
         select(EntityMention.entity_id, func.count(EntityMention.id).label("mention_count"))
         .group_by(EntityMention.entity_id)
@@ -34,6 +35,8 @@ def list_entities(
     )
     if matter_id is not None:
         statement = statement.where(Entity.matter_id == matter_id)
+    elif matter_ids is not None:
+        statement = statement.where(Entity.matter_id.in_(matter_ids))
     if entity_type is not None:
         statement = statement.where(Entity.entity_type == entity_type)
     if q is not None:
@@ -62,7 +65,7 @@ def get_entity(
     entity = db.get(Entity, entity_id)
     if entity is None:
         raise HTTPException(status_code=404, detail="Entity not found")
-    require_matter_access(actor, entity.matter_id)
+    require_matter_access(db, actor, entity.matter_id)
 
     mentions = list(
         db.scalars(
@@ -91,7 +94,7 @@ def list_entity_relationships(
     entity = db.get(Entity, entity_id)
     if entity is None:
         raise HTTPException(status_code=404, detail="Entity not found")
-    require_matter_access(actor, entity.matter_id)
+    require_matter_access(db, actor, entity.matter_id)
 
     statement = (
         select(Relationship)

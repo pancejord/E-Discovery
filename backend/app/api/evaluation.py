@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.core.auth import Actor, get_actor, require_matter_access
+from app.core.auth import Actor, accessible_matter_ids, get_actor, require_matter_access
 from app.database import get_db
 from app.models.schemas import (
     BenchmarkCase,
@@ -34,8 +34,9 @@ def list_metrics(
     actor: Actor = Depends(get_actor),
     matter_id: int | None = None,
 ) -> list[EvaluationMetric]:
-    require_matter_access(actor, matter_id)
-    return list_evaluation_metrics(db, matter_id=matter_id)
+    require_matter_access(db, actor, matter_id)
+    matter_ids = accessible_matter_ids(db, actor) if matter_id is None else None
+    return list_evaluation_metrics(db, matter_id=matter_id, matter_ids=matter_ids)
 
 
 @router.post("/run", response_model=EvaluationRunResponse)
@@ -44,13 +45,15 @@ def run_evaluation(
     db: Session = Depends(get_db),
     actor: Actor = Depends(get_actor),
 ) -> EvaluationRunResponse:
-    require_matter_access(actor, request.matter_id)
+    require_matter_access(db, actor, request.matter_id)
+    matter_ids = accessible_matter_ids(db, actor) if request.matter_id is None else None
     if request.task_type == "answer":
         response = run_answer_evaluation(
             db,
             matter_id=request.matter_id,
             dataset_name=request.dataset_name,
             limit=request.limit,
+            matter_ids=matter_ids,
         )
     elif request.task_type == "all":
         retrieval_response = run_retrieval_evaluation(
@@ -58,12 +61,14 @@ def run_evaluation(
             matter_id=request.matter_id,
             dataset_name=request.dataset_name,
             limit=request.limit,
+            matter_ids=matter_ids,
         )
         answer_response = run_answer_evaluation(
             db,
             matter_id=request.matter_id,
             dataset_name=request.dataset_name,
             limit=request.limit,
+            matter_ids=matter_ids,
         )
         response = EvaluationRunResponse(
             dataset_name=request.dataset_name,
@@ -76,6 +81,7 @@ def run_evaluation(
             matter_id=request.matter_id,
             dataset_name=request.dataset_name,
             limit=request.limit,
+            matter_ids=matter_ids,
         )
     record_audit_event(
         db,

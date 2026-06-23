@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     ai_external_enabled: bool = False
     auth_enabled: bool = False
     api_keys: str | None = None
+    audit_retention_days: int = 365
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

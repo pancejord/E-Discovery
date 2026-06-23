@@ -7,6 +7,7 @@ import {
   GitBranch,
   RefreshCw,
   Search,
+  ShieldCheck,
   Upload,
 } from "lucide-react";
 import Link from "next/link";
@@ -198,6 +199,10 @@ export default function Home() {
               <Link href="/graph" className="nav-button">
                 <GitBranch size={18} />
                 Graph
+              </Link>
+              <Link href="/audit" className="nav-button">
+                <ShieldCheck size={18} />
+                Audit
               </Link>
               <button className="nav-button" onClick={() => void refresh()} type="button">
                 <RefreshCw size={18} />

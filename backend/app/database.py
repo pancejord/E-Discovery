@@ -34,7 +34,10 @@ def init_db() -> None:
         entity_mention,
         evaluation,
         matter,
+        matter_membership,
         relationship,
+        role,
+        user,
     )
 
     Base.metadata.create_all(bind=engine)

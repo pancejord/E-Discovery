@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, Upl
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.auth import Actor, get_actor, require_matter_access
+from app.core.auth import Actor, accessible_matter_ids, get_actor, require_matter_access, require_scoped_write_matter
 from app.database import get_db
 from app.models.chunk import DocumentChunk
 from app.models.custodian import Custodian
@@ -38,10 +38,13 @@ def list_documents(
     offset: int = 0,
     actor: Actor = Depends(get_actor),
 ) -> list[Document]:
-    require_matter_access(actor, matter_id)
+    require_matter_access(db, actor, matter_id)
+    matter_ids = accessible_matter_ids(db, actor)
     statement = select(Document)
     if matter_id is not None:
         statement = statement.where(Document.matter_id == matter_id)
+    elif matter_ids is not None:
+        statement = statement.where(Document.matter_id.in_(matter_ids))
     if custodian_id is not None:
         statement = statement.where(Document.custodian_id == custodian_id)
     if processing_status is not None:
@@ -58,12 +61,23 @@ async def upload_document(
     db: Session = Depends(get_db),
     actor: Actor = Depends(get_actor),
 ) -> DocumentIngestionResult:
-    require_matter_access(actor, matter_id)
+    require_scoped_write_matter(db, actor, matter_id)
     if matter_id is not None and db.get(Matter, matter_id) is None:
         raise HTTPException(status_code=400, detail="matter_id does not exist")
     if custodian_id is not None and db.get(Custodian, custodian_id) is None:
         raise HTTPException(status_code=400, detail="custodian_id does not exist")
-    result = await ingest_upload(db, file, matter_id=matter_id, custodian_id=custodian_id)
+    try:
+        result = await ingest_upload(db, file, matter_id=matter_id, custodian_id=custodian_id)
+    except Exception as error:
+        record_audit_event(
+            db,
+            action="document.ingestion_failed",
+            actor=actor.name,
+            matter_id=matter_id,
+            summary=f"Failed to ingest {file.filename or 'upload'}",
+            details={"error": str(error)},
+        )
+        raise
     record_audit_event(
         db,
         action="document.upload",
@@ -83,7 +97,7 @@ def get_document(
     actor: Actor = Depends(get_actor),
 ) -> DocumentDetail:
     document = get_document_or_404(db, document_id)
-    require_matter_access(actor, document.matter_id)
+    require_matter_access(db, actor, document.matter_id)
     chunks = list(
         db.scalars(
             select(DocumentChunk)
@@ -172,7 +186,7 @@ def delete_document(
     actor: Actor = Depends(get_actor),
 ) -> Response:
     document = get_document_or_404(db, document_id)
-    require_matter_access(actor, document.matter_id)
+    require_matter_access(db, actor, document.matter_id)
     stored_path = Path(document.stored_file_path)
     matter_id = document.matter_id
     filename = document.original_filename

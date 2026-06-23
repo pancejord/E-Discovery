@@ -12,14 +12,24 @@ from app.services.vector_store import citation_for_chunk, query_chunks
 TOKEN_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_\-']*")
 
 
-def search_chunks(db: Session, query: str, matter_id: int | None = None, limit: int = 10) -> list[SearchResult]:
+def search_chunks(
+    db: Session,
+    query: str,
+    matter_id: int | None = None,
+    limit: int = 10,
+    matter_ids: list[int] | None = None,
+) -> list[SearchResult]:
+    if matter_ids == []:
+        return []
     query_vector = embed_text(query)
     query_terms = {token.lower() for token in TOKEN_PATTERN.findall(query)}
-    qdrant_results = _search_qdrant(db, query_vector, query_terms, matter_id=matter_id, limit=limit)
+    qdrant_results = []
+    if matter_ids is None:
+        qdrant_results = _search_qdrant(db, query_vector, query_terms, matter_id=matter_id, limit=limit)
     if qdrant_results:
         return qdrant_results
 
-    return _search_local(db, query_vector, query_terms, matter_id=matter_id, limit=limit)
+    return _search_local(db, query_vector, query_terms, matter_id=matter_id, matter_ids=matter_ids, limit=limit)
 
 
 def _search_qdrant(
@@ -62,11 +72,14 @@ def _search_local(
     query_vector: list[float],
     query_terms: set[str],
     matter_id: int | None,
+    matter_ids: list[int] | None,
     limit: int,
 ) -> list[SearchResult]:
     statement = select(DocumentChunk, Document).join(Document, DocumentChunk.document_id == Document.id)
     if matter_id is not None:
         statement = statement.where(Document.matter_id == matter_id)
+    elif matter_ids is not None:
+        statement = statement.where(Document.matter_id.in_(matter_ids))
 
     scored_results = []
     for chunk, document in db.execute(statement).all():

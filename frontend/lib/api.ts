@@ -220,6 +220,18 @@ export type AIAnswer = {
   grounding: GroundingSignal;
 };
 
+export type AuditLog = {
+  id: number;
+  actor: string | null;
+  action: string;
+  matter_id: number | null;
+  document_id: number | null;
+  entity_id: number | null;
+  summary: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+};
+
 export async function getKnowledgeGraph(
   relationshipType?: string,
   matterId?: number,
@@ -384,6 +396,56 @@ export async function askAssistant(question: string, limit = 5, matterId?: numbe
   });
   if (!response.ok) {
     throw new Error("AI answer request failed");
+  }
+  return response.json();
+}
+
+export type AuditFilters = {
+  matterId?: number;
+  documentId?: number;
+  actor?: string;
+  action?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  limit?: number;
+};
+
+export function auditQueryString(filters: AuditFilters, format?: "csv" | "json") {
+  const params = new URLSearchParams();
+  if (filters.matterId) {
+    params.set("matter_id", String(filters.matterId));
+  }
+  if (filters.documentId) {
+    params.set("document_id", String(filters.documentId));
+  }
+  if (filters.actor) {
+    params.set("event_actor", filters.actor);
+  }
+  if (filters.action) {
+    params.set("action", filters.action);
+  }
+  if (filters.createdFrom) {
+    params.set("created_from", filters.createdFrom);
+  }
+  if (filters.createdTo) {
+    params.set("created_to", filters.createdTo);
+  }
+  if (filters.limit) {
+    params.set("limit", String(filters.limit));
+  }
+  if (format) {
+    params.set("format", format);
+  }
+  return params.toString();
+}
+
+export async function getAuditLogs(filters: AuditFilters = {}): Promise<AuditLog[]> {
+  const query = auditQueryString(filters);
+  const response = await fetch(`${apiBaseUrl}/api/audit${query ? `?${query}` : ""}`, {
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error("Audit request failed");
   }
   return response.json();
 }

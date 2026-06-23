@@ -92,12 +92,13 @@ def run_retrieval_evaluation(
     matter_id: int | None = None,
     dataset_name: str = BENCHMARK_DATASET_NAME,
     limit: int = 10,
+    matter_ids: list[int] | None = None,
 ) -> EvaluationRunResponse:
     metrics = []
     for case in list_benchmarks(dataset_name):
         if case.task_type != "retrieval":
             continue
-        results = search_chunks(db, case.query, matter_id=matter_id, limit=limit)
+        results = search_chunks(db, case.query, matter_id=matter_id, matter_ids=matter_ids, limit=limit)
         case_metrics = _evaluate_case(db, case, results, matter_id)
         metrics.extend(case_metrics)
         for metric in case_metrics:
@@ -120,12 +121,13 @@ def run_answer_evaluation(
     matter_id: int | None = None,
     dataset_name: str = BENCHMARK_DATASET_NAME,
     limit: int = 5,
+    matter_ids: list[int] | None = None,
 ) -> EvaluationRunResponse:
     metrics = []
     for case in list_benchmarks(dataset_name):
         if case.task_type != "answer":
             continue
-        results = search_chunks(db, case.query, matter_id=matter_id, limit=limit)
+        results = search_chunks(db, case.query, matter_id=matter_id, matter_ids=matter_ids, limit=limit)
         sources = [_source_from_result(result) for result in results if result.citation]
         answer = _generate_benchmark_answer(case, sources)
         citations = [source.citation for source in sources if source.citation in answer]
@@ -146,10 +148,16 @@ def run_answer_evaluation(
     )
 
 
-def list_evaluation_metrics(db: Session, matter_id: int | None = None) -> list[EvaluationMetric]:
+def list_evaluation_metrics(
+    db: Session,
+    matter_id: int | None = None,
+    matter_ids: list[int] | None = None,
+) -> list[EvaluationMetric]:
     statement = select(EvaluationRun).order_by(EvaluationRun.created_at.desc(), EvaluationRun.id.desc())
     if matter_id is not None:
         statement = statement.where(EvaluationRun.matter_id == matter_id)
+    elif matter_ids is not None:
+        statement = statement.where(EvaluationRun.matter_id.in_(matter_ids))
     return [_metric_schema(metric) for metric in db.scalars(statement)]
 
 

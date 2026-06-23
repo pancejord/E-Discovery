@@ -13,15 +13,17 @@ from app.models.schemas import GraphEdge, GraphMetrics, GraphNode, KnowledgeGrap
 def build_knowledge_graph(
     db: Session,
     matter_id: int | None = None,
+    matter_ids: list[int] | None = None,
     relationship_type: str | None = None,
     min_confidence: float = 0.0,
     entity_limit: int = 250,
 ) -> KnowledgeGraphResponse:
-    entities = _load_entities(db, matter_id, entity_limit)
+    entities = _load_entities(db, matter_id, entity_limit, matter_ids=matter_ids)
     relationships = _load_relationships(
         db,
         entity_ids=set(entities),
         matter_id=matter_id,
+        matter_ids=matter_ids,
         relationship_type=relationship_type,
         min_confidence=min_confidence,
     )
@@ -113,6 +115,7 @@ def _load_entities(
     matter_id: int | None,
     limit: int,
     scope_to_matter: bool = False,
+    matter_ids: list[int] | None = None,
 ) -> dict[int, Entity]:
     mention_counts = (
         select(EntityMention.entity_id, func.count(EntityMention.id).label("mention_count"))
@@ -122,6 +125,8 @@ def _load_entities(
     statement = select(Entity).outerjoin(mention_counts, mention_counts.c.entity_id == Entity.id)
     if matter_id is not None:
         statement = statement.where(Entity.matter_id == matter_id)
+    elif matter_ids is not None:
+        statement = statement.where(Entity.matter_id.in_(matter_ids))
     elif scope_to_matter:
         statement = statement.where(Entity.matter_id.is_(None))
     statement = statement.order_by(func.coalesce(mention_counts.c.mention_count, 0).desc(), Entity.name).limit(limit)
@@ -133,6 +138,7 @@ def _load_relationships(
     entity_ids: set[int],
     matter_id: int | None,
     scope_to_matter: bool = False,
+    matter_ids: list[int] | None = None,
     relationship_type: str | None = None,
     min_confidence: float = 0.0,
 ) -> list[Relationship]:
@@ -145,6 +151,8 @@ def _load_relationships(
     )
     if matter_id is not None:
         statement = statement.where(Relationship.matter_id == matter_id)
+    elif matter_ids is not None:
+        statement = statement.where(Relationship.matter_id.in_(matter_ids))
     elif scope_to_matter:
         statement = statement.where(Relationship.matter_id.is_(None))
     if relationship_type is not None:

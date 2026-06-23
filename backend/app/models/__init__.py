@@ -6,8 +6,11 @@ from app.models.document import Document
 from app.models.entity import Entity
 from app.models.entity_mention import EntityMention
 from app.models.evaluation import EvaluationRun
+from app.models.matter_membership import MatterMembership
 from app.models.matter import Matter
 from app.models.relationship import Relationship
+from app.models.role import Role
+from app.models.user import User
 
 __all__ = [
     "Custodian",
@@ -17,6 +20,9 @@ __all__ = [
     "Entity",
     "EntityMention",
     "EvaluationRun",
+    "MatterMembership",
     "Matter",
     "Relationship",
+    "Role",
+    "User",
 ]

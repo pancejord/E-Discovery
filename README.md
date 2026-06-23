@@ -40,6 +40,14 @@ npm install
 npm run dev
 ```
 
+Production build check:
+
+```powershell
+cd frontend
+npm install
+npm run build
+```
+
 ## Notes
 
 Keep real client data out of the repo. Use `data/samples/` for synthetic or approved test material only.

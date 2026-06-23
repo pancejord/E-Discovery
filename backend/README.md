@@ -85,13 +85,17 @@ The first evaluation framework is deterministic and local. It does not call exte
 
 ## Audit API
 
-- `GET /api/audit` - list audit events with optional `matter_id`, `document_id`, and `action` filters.
+- `GET /api/audit` - list audit events with optional `matter_id`, `document_id`, `event_actor`, `action`, `created_from`, and `created_to` filters.
+- `GET /api/audit/export?format=csv|json` - export filtered audit events.
+- `POST /api/audit/retention/purge` - delete audit events older than `AUDIT_RETENTION_DAYS`; admin role required when auth is enabled.
 
-The platform records audit events for matter and custodian management, document upload/view/delete, search, AI answers, and evaluation checks.
+The platform records audit events for matter and custodian management, document upload/view/delete, search, AI answers, evaluation checks, permission denials, and ingestion failures. Set `AUDIT_RETENTION_DAYS` to control local retention; the default is 365 days.
 
 ## Authentication
 
-Authentication is disabled by default for local development. Set `AUTH_ENABLED=true` and `API_KEYS` to a comma-separated list of accepted keys to require an `X-API-Key` header on protected routes.
+Authentication is disabled by default for local development. Set `AUTH_ENABLED=true` to require an `X-API-Key` header on protected routes. API keys are matched to persisted `users.api_key_hash` records; each user has a role, and non-admin users must have `matter_memberships` rows for the matters they can access.
+
+When auth is enabled, unscoped matter reads are limited to the actor's assigned matters. Cross-matter reads and writes return `403` and create `permission.denied` audit events. Document uploads require a `matter_id` when auth is enabled.
 
 ## Database
 
