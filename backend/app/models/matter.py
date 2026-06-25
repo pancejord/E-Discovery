@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, Text
+from sqlalchemy import Boolean, DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -15,6 +15,10 @@ class Matter(Base):
     description: Mapped[str | None] = mapped_column(Text)
     client_name: Mapped[str | None] = mapped_column(String(255), index=True)
     matter_number: Mapped[str | None] = mapped_column(String(100), unique=True, index=True)
+    ai_external_allowed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    ai_redaction_required: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    ai_allowed_modes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     documents = relationship("Document", back_populates="matter")
+    memberships = relationship("MatterMembership", back_populates="matter", cascade="all, delete-orphan")

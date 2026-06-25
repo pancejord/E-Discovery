@@ -15,8 +15,13 @@ class Entity(Base):
     name: Mapped[str] = mapped_column(String(500), nullable=False, index=True)
     entity_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     normalized_name: Mapped[str] = mapped_column(String(500), nullable=False, index=True)
+    alias_of_entity_id: Mapped[int | None] = mapped_column(ForeignKey("entities.id"), index=True)
+    review_status: Mapped[str] = mapped_column(String(50), default="unreviewed", nullable=False, index=True)
+    extraction_provider: Mapped[str | None] = mapped_column(String(100), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
+    alias_of = relationship("Entity", remote_side=[id], back_populates="aliases")
+    aliases = relationship("Entity", back_populates="alias_of")
     mentions = relationship("EntityMention", back_populates="entity", cascade="all, delete-orphan")
     source_relationships = relationship(
         "Relationship",

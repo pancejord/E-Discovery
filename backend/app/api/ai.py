@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.core.auth import Actor, get_actor, require_matter_access
+from app.core.auth import Actor, accessible_matter_ids, get_actor, require_matter_access
 from app.database import get_db
 from app.models.schemas import AIAnswerRequest, AIAnswerResponse
 from app.services.audit import record_audit_event
@@ -16,8 +16,9 @@ def answer(
     db: Session = Depends(get_db),
     actor: Actor = Depends(get_actor),
 ) -> AIAnswerResponse:
-    require_matter_access(actor, request.matter_id)
-    response = answer_question(db, request)
+    require_matter_access(db, actor, request.matter_id)
+    matter_ids = accessible_matter_ids(db, actor) if request.matter_id is None else None
+    response = answer_question(db, request, matter_ids=matter_ids)
     record_audit_event(
         db,
         action="ai.answer",
@@ -28,6 +29,10 @@ def answer(
             "provider": response.provider,
             "model": response.model,
             "provider_enabled": response.provider_enabled,
+            "answer_mode": response.answer_mode,
+            "redactions_applied": response.redactions_applied,
+            "redaction_count": response.redaction_count,
+            "policy": response.policy,
             "citations": response.citations,
             "source_count": len(response.sources),
             "hallucination_risk_score": response.grounding.hallucination_risk_score,

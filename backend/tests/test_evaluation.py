@@ -128,6 +128,47 @@ def test_answer_benchmark_runner_scores_answer_and_negative_cases(client: TestCl
     )
 
 
+def test_extraction_benchmark_runner_summaries_and_trends(client: TestClient) -> None:
+    _upload_mixed_production_documents(client)
+
+    run_response = client.post(
+        "/api/evaluation/run",
+        json={
+            "dataset_name": "phase8_synthetic_mixed_production",
+            "task_type": "extraction",
+            "limit": 5,
+        },
+    )
+
+    assert run_response.status_code == 200
+    run = run_response.json()
+    assert run["dataset_name"] == "phase8_synthetic_mixed_production"
+    assert len(run["metrics"]) == 21
+    metric_names = {metric["metric_name"] for metric in run["metrics"]}
+    assert {
+        "extraction_expected_term_coverage",
+        "classification_match",
+        "document_date_match",
+        "entity_coverage",
+        "relationship_coverage",
+        "ocr_term_coverage",
+        "extraction_benchmark_pass",
+    } <= metric_names
+    assert any(metric["details"]["owner"] == "quality" for metric in run["metrics"])
+    assert any(metric["details"]["triage_notes"] for metric in run["metrics"])
+
+    summaries_response = client.get("/api/evaluation/summaries")
+    assert summaries_response.status_code == 200
+    summaries = summaries_response.json()
+    assert any(summary["metric_name"] == "extraction_benchmark_pass" for summary in summaries)
+
+    trends_response = client.get("/api/evaluation/trends", params={"metric_name": "extraction_benchmark_pass"})
+    assert trends_response.status_code == 200
+    trends = trends_response.json()
+    assert len(trends) == 3
+    assert all(point["metric_name"] == "extraction_benchmark_pass" for point in trends)
+
+
 def test_answer_grounding_flags_unsupported_terms(client: TestClient) -> None:
     _upload_evaluation_documents(client)
     search_response = client.post("/api/search", json={"query": "contract Rule 26 $12,500", "limit": 1})

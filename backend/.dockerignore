@@ -1,0 +1,9 @@
+.pytest_cache
+__pycache__
+app/**/__pycache__
+tests/**/__pycache__
+.venv
+dev.db
+tmp_*.db
+_migration_check.db
+storage

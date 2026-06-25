@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.core.auth import Actor, get_actor, require_matter_access
+from app.core.auth import Actor, accessible_matter_ids, get_actor, require_matter_access
 from app.database import get_db
 from app.models.entity import Entity
 from app.models.schemas import GraphMetrics, GraphPathResponse, KnowledgeGraphResponse
@@ -17,15 +17,21 @@ def get_knowledge_graph(
     relationship_type: str | None = None,
     min_confidence: float = 0.0,
     entity_limit: int = 250,
+    entity_offset: int = 0,
+    use_cache: bool = True,
     actor: Actor = Depends(get_actor),
 ) -> KnowledgeGraphResponse:
-    require_matter_access(actor, matter_id)
+    require_matter_access(db, actor, matter_id)
+    matter_ids = accessible_matter_ids(db, actor) if matter_id is None else None
     return build_knowledge_graph(
         db,
         matter_id=matter_id,
+        matter_ids=matter_ids,
         relationship_type=relationship_type,
         min_confidence=min_confidence,
-        entity_limit=entity_limit,
+        entity_limit=min(max(entity_limit, 1), 500),
+        entity_offset=max(entity_offset, 0),
+        use_cache=use_cache,
     )
 
 
@@ -43,7 +49,7 @@ def get_entity_neighborhood(
     entity = db.get(Entity, entity_id)
     if entity is None:
         raise HTTPException(status_code=404, detail="Entity not found")
-    require_matter_access(actor, entity.matter_id)
+    require_matter_access(db, actor, entity.matter_id)
     try:
         graph = build_neighborhood(
             db,
@@ -71,8 +77,8 @@ def get_shortest_paths(
     target = db.get(Entity, target_entity_id)
     if source is None or target is None:
         raise HTTPException(status_code=404, detail="Entity not found")
-    require_matter_access(actor, source.matter_id)
-    require_matter_access(actor, target.matter_id)
+    require_matter_access(db, actor, source.matter_id)
+    require_matter_access(db, actor, target.matter_id)
     try:
         paths = shortest_paths(
             db,
@@ -96,5 +102,6 @@ def get_graph_metrics(
     min_confidence: float = 0.0,
     actor: Actor = Depends(get_actor),
 ) -> GraphMetrics:
-    require_matter_access(actor, matter_id)
-    return build_knowledge_graph(db, matter_id=matter_id, min_confidence=min_confidence).metrics
+    require_matter_access(db, actor, matter_id)
+    matter_ids = accessible_matter_ids(db, actor) if matter_id is None else None
+    return build_knowledge_graph(db, matter_id=matter_id, matter_ids=matter_ids, min_confidence=min_confidence).metrics

@@ -9,21 +9,27 @@
           "task_type": "retrieval",
           "query": "contract dollar amount and Rule 26",
           "expected_terms": ["contract", "$12,500", "Rule 26"],
-          "minimum_citation_count": 1
+          "minimum_citation_count": 1,
+          "owner": "quality",
+          "triage_notes": "Core retrieval smoke case for contract amount and civil-rule terms."
         },
         {
           "id": "email-communication",
           "task_type": "retrieval",
           "query": "Jane Smith email John Doe update",
           "expected_terms": ["Jane Smith", "John Doe", "update"],
-          "minimum_citation_count": 1
+          "minimum_citation_count": 1,
+          "owner": "quality",
+          "triage_notes": "Confirms email metadata/body terms remain searchable."
         },
         {
           "id": "timeline-date",
           "task_type": "retrieval",
           "query": "March 3 2024 New York meeting",
           "expected_terms": ["March 3, 2024", "New York"],
-          "minimum_citation_count": 1
+          "minimum_citation_count": 1,
+          "owner": "quality",
+          "triage_notes": "Confirms date/location retrieval from synthetic contract facts."
         }
       ]
     },
@@ -36,42 +42,90 @@
           "task_type": "retrieval",
           "query": "amendment payment cap Atlas Northwind 87500",
           "expected_terms": ["Atlas Components", "Northwind Systems", "$87,500", "Amendment No. 2"],
-          "minimum_citation_count": 1
+          "minimum_citation_count": 1,
+          "owner": "litigation-support",
+          "triage_notes": "Payment-cap retrieval should hit the amendment."
         },
         {
           "id": "email-notice-delay",
           "task_type": "retrieval",
           "query": "email notice delay April 14 warehouse migration",
           "expected_terms": ["April 14, 2025", "warehouse migration", "delay notice"],
-          "minimum_citation_count": 1
+          "minimum_citation_count": 1,
+          "owner": "litigation-support",
+          "triage_notes": "Date and notice-language retrieval should hit the delay email."
         },
         {
           "id": "invoice-disputed-line-item",
           "task_type": "retrieval",
           "query": "invoice disputed line item expedited review 18400",
           "expected_terms": ["INV-1042", "$18,400", "expedited review"],
-          "minimum_citation_count": 1
+          "minimum_citation_count": 1,
+          "owner": "litigation-support",
+          "triage_notes": "Invoice retrieval should find disputed amount and line-item description."
         },
         {
           "id": "discovery-response-custodian",
           "task_type": "retrieval",
           "query": "discovery response custodian Maria Chen Slack export",
           "expected_terms": ["Maria Chen", "Slack export", "Request for Production No. 7"],
-          "minimum_citation_count": 1
+          "minimum_citation_count": 1,
+          "owner": "review-lead",
+          "triage_notes": "Discovery-response retrieval should preserve custodian and RFP context."
         },
         {
           "id": "legal-memo-risk",
           "task_type": "answer",
           "query": "What contractual risk did the legal memo identify?",
           "expected_terms": ["uncapped implementation delay fees", "written notice", "Section 4.3"],
-          "minimum_citation_count": 1
+          "minimum_citation_count": 1,
+          "owner": "review-lead",
+          "triage_notes": "Answer benchmark for cited risk synthesis."
         },
         {
           "id": "negative-admission-liability",
           "task_type": "answer",
           "query": "Did Northwind admit liability for fraud?",
           "expected_terms": ["available documents do not establish"],
-          "minimum_citation_count": 0
+          "minimum_citation_count": 0,
+          "owner": "review-lead",
+          "triage_notes": "Negative benchmark should refuse unsupported admission of liability."
+        },
+        {
+          "id": "extract-amendment-classification-date",
+          "task_type": "extraction",
+          "query": "Amendment No. 2 Section 4.3 written notice",
+          "expected_terms": ["Amendment No. 2", "Section 4.3", "written notice"],
+          "minimum_citation_count": 1,
+          "owner": "quality",
+          "triage_notes": "Tracks classification, date, and OCR-term coverage for amendment-like documents.",
+          "expected_document_type": null,
+          "expected_document_date": null,
+          "expected_ocr_terms": ["Section 4.3"]
+        },
+        {
+          "id": "extract-email-entities-relationships",
+          "task_type": "extraction",
+          "query": "Maria Chen Daniel Ortiz warehouse migration delay notice",
+          "expected_terms": ["Maria Chen", "Daniel Ortiz", "warehouse migration"],
+          "minimum_citation_count": 1,
+          "owner": "quality",
+          "triage_notes": "Tracks email entity extraction and communication relationship creation.",
+          "expected_document_type": "email",
+          "expected_document_date": "2025-04-14",
+          "expected_entities": ["Maria Chen", "Daniel Ortiz"],
+          "expected_relationships": ["communicated_with"]
+        },
+        {
+          "id": "extract-discovery-response-classification",
+          "task_type": "extraction",
+          "query": "Response to Request for Production No. 7 Slack export",
+          "expected_terms": ["Request for Production No. 7", "Slack export", "privilege review"],
+          "minimum_citation_count": 1,
+          "owner": "review-lead",
+          "triage_notes": "Tracks discovery-response classification and expected production terms.",
+          "expected_document_type": "discovery_response",
+          "expected_entities": ["Maria Chen"]
         }
       ]
     }

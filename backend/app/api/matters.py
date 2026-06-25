@@ -1,9 +1,11 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.auth import Actor, get_actor, require_matter_access
+from app.core.auth import Actor, accessible_matter_ids, get_actor, require_matter_access
 from app.database import get_db
 from app.models.matter import Matter
 from app.models.schemas import MatterCreate, MatterRead, MatterUpdate
@@ -21,6 +23,9 @@ def list_matters(
     offset: int = 0,
 ) -> list[Matter]:
     statement = select(Matter)
+    matter_ids = accessible_matter_ids(db, actor)
+    if matter_ids is not None:
+        statement = statement.where(Matter.id.in_(matter_ids))
     if q:
         normalized = f"%{q.lower()}%"
         statement = statement.where(Matter.name.ilike(normalized))
@@ -35,7 +40,9 @@ def create_matter(
     db: Session = Depends(get_db),
     actor: Actor = Depends(get_actor),
 ) -> Matter:
-    matter = Matter(**request.model_dump())
+    payload = request.model_dump()
+    payload["ai_allowed_modes"] = json.dumps(payload.get("ai_allowed_modes") or [])
+    matter = Matter(**payload)
     db.add(matter)
     try:
         db.commit()
@@ -59,7 +66,7 @@ def get_matter(
     db: Session = Depends(get_db),
     actor: Actor = Depends(get_actor),
 ) -> Matter:
-    require_matter_access(actor, matter_id)
+    require_matter_access(db, actor, matter_id)
     matter = db.get(Matter, matter_id)
     if matter is None:
         raise HTTPException(status_code=404, detail="Matter not found")
@@ -73,12 +80,15 @@ def update_matter(
     db: Session = Depends(get_db),
     actor: Actor = Depends(get_actor),
 ) -> Matter:
-    require_matter_access(actor, matter_id)
+    require_matter_access(db, actor, matter_id)
     matter = db.get(Matter, matter_id)
     if matter is None:
         raise HTTPException(status_code=404, detail="Matter not found")
 
-    for key, value in request.model_dump(exclude_unset=True).items():
+    payload = request.model_dump(exclude_unset=True)
+    if "ai_allowed_modes" in payload:
+        payload["ai_allowed_modes"] = json.dumps(payload["ai_allowed_modes"] or [])
+    for key, value in payload.items():
         setattr(matter, key, value)
     try:
         db.commit()

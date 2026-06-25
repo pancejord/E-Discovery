@@ -101,6 +101,23 @@ def test_analytics_dashboard_uses_ingested_documents(client: TestClient) -> None
         for pair in dashboard["communication_pairs"]
     )
 
+    filtered_response = client.get(
+        "/api/analytics/dashboard",
+        params={"matter_id": matter.id, "custodian_id": custodian.id, "date_from": "2024-03-05", "date_to": "2024-03-05"},
+    )
+    assert filtered_response.status_code == 200
+    filtered = filtered_response.json()
+    assert filtered["snapshot"]["document_count"] == 1
+    assert filtered["file_type_distribution"] == [{"label": "eml", "count": 1}]
+
+    export_response = client.get(
+        "/api/analytics/export.csv",
+        params={"matter_id": matter.id, "custodian_id": custodian.id},
+    )
+    assert export_response.status_code == 200
+    assert export_response.headers["content-type"].startswith("text/csv")
+    assert "communication_pair" in export_response.text
+
 
 def test_analytics_snapshot_returns_counts(client: TestClient) -> None:
     response = client.post(

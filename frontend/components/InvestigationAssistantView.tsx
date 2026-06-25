@@ -11,6 +11,8 @@ export function InvestigationAssistantView() {
   const [answer, setAnswer] = useState<AIAnswer | null>(null);
   const [matters, setMatters] = useState<Matter[]>([]);
   const [matterId, setMatterId] = useState<number | undefined>();
+  const [answerMode, setAnswerMode] = useState("summary");
+  const [applyRedactions, setApplyRedactions] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [matterError, setMatterError] = useState<string | null>(null);
@@ -34,7 +36,15 @@ export function InvestigationAssistantView() {
     setIsLoading(true);
     setError(null);
     try {
-      setAnswer(await askAssistant(trimmed, 5, matterId));
+      setAnswer(
+        await askAssistant({
+          question: trimmed,
+          limit: 5,
+          matterId,
+          answerMode,
+          applyRedactions,
+        }),
+      );
     } catch {
       setError("Unable to generate an answer");
     } finally {
@@ -47,12 +57,12 @@ export function InvestigationAssistantView() {
       <section className="border-b border-line bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-accent">Investigation Assistant</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-accent">LegalSight Assistant</p>
             <h1 className="mt-1 text-2xl font-semibold text-ink">Cited answers from discovery evidence</h1>
           </div>
-          {answer && (
+            {answer && (
             <div className="rounded-md border border-line bg-panel px-3 py-2 text-sm text-slate-700">
-              {answer.provider} / {answer.model ?? "no model"}
+              {answer.provider} / {answer.model ?? "no model"} / {answer.answer_mode}
             </div>
           )}
         </div>
@@ -83,6 +93,28 @@ export function InvestigationAssistantView() {
               </select>
             </label>
             {matterError && <p className="text-sm text-rose-700">{matterError}</p>}
+            <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+              <label className="block">
+                <span className="form-label">Answer mode</span>
+                <select className="form-field" value={answerMode} onChange={(event) => setAnswerMode(event.target.value)}>
+                  <option value="summary">Summary</option>
+                  <option value="chronology">Chronology</option>
+                  <option value="issues">Issues list</option>
+                  <option value="contradiction">Contradiction check</option>
+                  <option value="privilege">Privilege risk</option>
+                  <option value="deposition">Deposition prep</option>
+                </select>
+              </label>
+              <label className="flex items-end gap-2 pb-2 text-sm text-slate-700">
+                <input
+                  checked={applyRedactions}
+                  className="h-4 w-4"
+                  onChange={(event) => setApplyRedactions(event.target.checked)}
+                  type="checkbox"
+                />
+                Redact external prompts
+              </label>
+            </div>
             <textarea
               className="min-h-[120px] w-full resize-y rounded-md border border-line px-3 py-2 text-sm text-ink"
               value={question}
@@ -154,6 +186,14 @@ export function InvestigationAssistantView() {
             <Signal label="Valid" value={answer?.grounding.valid_citation_count ?? 0} />
             <Signal label="Unsupported" value={answer?.grounding.unsupported_terms.length ?? 0} />
             <Signal label="Risk" value={answer?.grounding.hallucination_risk_score ?? 0} />
+          </div>
+          <div className="border-t border-line px-4 py-3">
+            <h2 className="text-base font-semibold text-ink">Policy</h2>
+            <div className="mt-3 space-y-2 text-sm text-slate-700">
+              <p>External allowed: {String(Boolean(answer?.policy.external_allowed))}</p>
+              <p>Redactions applied: {answer?.redactions_applied ? `${answer.redaction_count}` : "0"}</p>
+              <p>Mode: {answer?.answer_mode ?? answerMode}</p>
+            </div>
           </div>
           <div className="border-t border-line px-4 py-3">
             <h2 className="text-base font-semibold text-ink">Unsupported Terms</h2>

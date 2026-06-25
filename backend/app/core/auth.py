@@ -1,28 +1,153 @@
 from dataclasses import dataclass
+from hashlib import sha256
 
-from fastapi import Header, HTTPException
+from fastapi import Depends, Header, HTTPException
+from sqlalchemy import exists, select
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.database import get_db
+from app.models.matter_membership import MatterMembership
+from app.models.role import Role
+from app.models.user import User
+from app.services.audit import record_audit_event, update_audit_context
 
 
 @dataclass(frozen=True)
 class Actor:
     name: str
     authenticated: bool = False
+    user_id: int | None = None
+    role_name: str | None = None
+    is_admin: bool = False
+    organization: str | None = None
+    tenant_id: str | None = None
+    auth_scheme: str | None = None
 
 
-def get_actor(x_api_key: str | None = Header(default=None, alias="X-API-Key")) -> Actor:
+def get_actor(
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    db: Session = Depends(get_db),
+) -> Actor:
     if not settings.auth_enabled:
-        return Actor(name="local-dev", authenticated=False)
+        actor = Actor(name="local-dev", authenticated=False, is_admin=True, auth_scheme="local-dev")
+        update_audit_context(auth_scheme=actor.auth_scheme)
+        return actor
 
-    allowed_keys = {key.strip() for key in (settings.api_keys or "").split(",") if key.strip()}
-    if not x_api_key or x_api_key not in allowed_keys:
-        raise HTTPException(status_code=401, detail="Valid X-API-Key required")
-    return Actor(name=f"api-key:{x_api_key[-6:]}", authenticated=True)
+    credential = _resolve_credential(x_api_key, authorization)
+    if credential is None:
+        raise HTTPException(status_code=401, detail="Valid X-API-Key or bearer token required")
+
+    token, auth_scheme = credential
+    user = db.scalar(select(User).where(User.api_key_hash == hash_api_key(token), User.is_active.is_(True)))
+    if user is None:
+        update_audit_context(auth_scheme=auth_scheme)
+        record_audit_event(
+            db,
+            action="auth.denied",
+            actor="unknown",
+            summary="Rejected API key authentication",
+            details={"reason": "invalid_credential", "auth_scheme": auth_scheme},
+        )
+        raise HTTPException(status_code=401, detail="Valid X-API-Key or bearer token required")
+
+    role = db.get(Role, user.role_id) if user.role_id else None
+    actor = Actor(
+        name=user.email,
+        authenticated=True,
+        user_id=user.id,
+        role_name=role.name if role else None,
+        is_admin=bool(role and role.is_admin),
+        organization=user.organization,
+        tenant_id=user.tenant_id,
+        auth_scheme=auth_scheme,
+    )
+    update_audit_context(
+        actor_user_id=actor.user_id,
+        actor_role=actor.role_name,
+        actor_tenant_id=actor.tenant_id,
+        actor_organization=actor.organization,
+        auth_scheme=actor.auth_scheme,
+    )
+    return actor
 
 
-def require_matter_access(actor: Actor, matter_id: int | None) -> None:
+def hash_api_key(api_key: str) -> str:
+    return sha256(api_key.encode("utf-8")).hexdigest()
+
+
+def _resolve_credential(x_api_key: str | None, authorization: str | None) -> tuple[str, str] | None:
+    if x_api_key:
+        return x_api_key, "api_key"
+    if settings.auth_bearer_enabled and authorization:
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() == "bearer" and token:
+            return token, "bearer"
+    return None
+
+
+def require_admin(actor: Actor) -> None:
+    if actor.is_admin:
+        return
+    raise HTTPException(status_code=403, detail="Admin role required")
+
+
+def require_matter_access(db: Session, actor: Actor, matter_id: int | None) -> None:
     if matter_id is None:
         return
-    if settings.auth_enabled and not actor.authenticated:
-        raise HTTPException(status_code=403, detail="Matter access denied")
+    if _has_matter_access(db, actor, matter_id):
+        return
+    _record_permission_denial(db, actor, matter_id, "matter_access_denied")
+    raise HTTPException(status_code=403, detail="Matter access denied")
+
+
+def require_scoped_write_matter(db: Session, actor: Actor, matter_id: int | None) -> None:
+    if not settings.auth_enabled:
+        return
+    if matter_id is None:
+        _record_permission_denial(db, actor, None, "matter_id_required")
+        raise HTTPException(status_code=400, detail="matter_id required when auth is enabled")
+    require_matter_access(db, actor, matter_id)
+
+
+def accessible_matter_ids(db: Session, actor: Actor) -> list[int] | None:
+    if not settings.auth_enabled or actor.is_admin:
+        return None
+    if not actor.authenticated or actor.user_id is None:
+        return []
+    return list(
+        db.scalars(
+            select(MatterMembership.matter_id)
+            .where(MatterMembership.user_id == actor.user_id)
+            .order_by(MatterMembership.matter_id)
+        )
+    )
+
+
+def _has_matter_access(db: Session, actor: Actor, matter_id: int) -> bool:
+    if not settings.auth_enabled or actor.is_admin:
+        return True
+    if not actor.authenticated or actor.user_id is None:
+        return False
+    return bool(
+        db.scalar(
+            select(
+                exists().where(
+                    MatterMembership.user_id == actor.user_id,
+                    MatterMembership.matter_id == matter_id,
+                )
+            )
+        )
+    )
+
+
+def _record_permission_denial(db: Session, actor: Actor, matter_id: int | None, reason: str) -> None:
+    record_audit_event(
+        db,
+        action="permission.denied",
+        actor=actor.name,
+        matter_id=matter_id,
+        summary="Denied matter access",
+        details={"reason": reason},
+    )

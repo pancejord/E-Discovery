@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Float, ForeignKey, JSON, String
+from sqlalchemy import DateTime, Float, ForeignKey, Index, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -10,6 +10,9 @@ from app.utils.time import utc_now
 
 class EvaluationRun(Base):
     __tablename__ = "evaluation_runs"
+    __table_args__ = (
+        Index("ix_evaluation_runs_dataset_metric_created", "dataset_name", "metric_name", "created_at"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     matter_id: Mapped[int | None] = mapped_column(ForeignKey("matters.id"), index=True)

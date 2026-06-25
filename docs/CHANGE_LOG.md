@@ -23,6 +23,541 @@ For each file, use this format:
   Purpose: Why the change was needed.
 ```
 
+## 2026-06-25 - Frontend Design System And Developer Cleanup
+
+Area: Frontend, Developer Experience, Documentation
+
+Goal: Complete post-build steps 14 and 15 with a more polished shared frontend UI foundation, inline validation, dashboard table controls, cleanup tooling, runtime docs, and task aliases.
+
+Update: Added LegalSight branding to the frontend metadata and major page headers so the product name is visible throughout the review experience.
+
+Update: Added `docs/PROJECT_INTENT_AND_AI.md` to explain LegalSight's product purpose, AI role, governance model, and production-readiness priorities.
+
+### Files Changed
+
+- `frontend/app/globals.css`, `frontend/components/ui.tsx`
+  Change: Added shared design tokens and reusable page header, panel, metric, empty-state, and alert components.
+  Purpose: Make the frontend more consistent, more appealing, and easier to extend.
+
+- `frontend/app/page.tsx`
+  Change: Added inline field validation errors for matter, custodian, upload, search, and saved-search workflows.
+  Purpose: Give reviewers immediate, local feedback instead of only generic status messages.
+
+- `frontend/components/AnalyticsDashboardView.tsx`
+  Change: Moved the dashboard onto shared UI primitives and added sortable, paginated communication analysis.
+  Purpose: Improve dense dashboard readability and make table interactions consistent.
+
+- `frontend/scripts/ui-smoke.mjs`, `frontend/package.json`
+  Change: Added a lightweight UI smoke check and package script.
+  Purpose: Catch accidental removal of shared frontend patterns during future edits.
+
+- `scripts/cleanup_workspace.py`, `scripts/tasks.ps1`, `.node-version`
+  Change: Added generated-artifact cleanup, PowerShell task aliases, bundled-runtime fallbacks, and Node 22 pinning.
+  Purpose: Reduce local development friction and keep verification runs from leaving noisy files behind.
+
+- `docs/DEVELOPER_ENVIRONMENT.md`, `README.md`, `scripts/README.md`, `docs/POST_BUILD_REMAINING_WORK.md`, `docs/CHANGE_LOG.md`
+  Change: Documented runtime expectations, Codex desktop workarounds, cleanup commands, task aliases, and Step 14/15 completion.
+  Purpose: Keep project guidance aligned with the current development workflow.
+
+- `package-lock.json`
+  Change: Removed the empty root lockfile.
+  Purpose: Avoid confusion because the real frontend lockfile lives at `frontend/package-lock.json`.
+
+### Verification
+
+- Ran `python -m compileall -q scripts`: passed.
+- Ran `python scripts\cleanup_workspace.py --dry-run`: passed.
+- Ran `pnpm --dir frontend test:ui` with bundled Node on `PATH`: UI smoke checks passed.
+- Ran `pnpm --dir frontend build` with bundled Node on `PATH`: production build passed.
+- Ran `.\scripts\tasks.ps1 frontend-ui`: task alias passed.
+- Ran `python -m compileall -q backend\app scripts`: passed.
+- Ran `python scripts\cleanup_workspace.py --include-dependencies`: removed generated `.next`, transient `pnpm-lock.yaml`, frontend `node_modules`, and Python bytecode.
+
+### Follow-Up Notes
+
+- The existing Next.js advisory for `next@15.1.2` remains a dependency-hardening follow-up.
+- Docker remains unavailable in this desktop shell, so Docker verification was not run in this pass.
+
+## 2026-06-25 - Persistence Hardening And Deployment Assets
+
+Area: Backend, Infrastructure, CI, Documentation, Deployment
+
+Goal: Complete post-build steps 12 and 13 with migration-driven production startup, drift checks, persistence scripts, Docker assets, Compose profiles, health checks, environment docs, and structured logging.
+
+### Files Changed
+
+- `backend/app/core/config.py`, `backend/app/database.py`, `backend/app/main.py`
+  Change: Added environment/table-creation gates, structured request logging settings, and JSON request log support.
+  Purpose: Make production startup migration-driven and logs deployment-friendly.
+
+- `backend/alembic/versions/0014_persistence_hardening_indexes.py`, `backend/alembic/versions/0015_migration_drift_alignment.py`, `backend/app/models/document.py`, `backend/app/models/audit_log.py`, `backend/app/models/evaluation.py`, `backend/app/models/relationship.py`, `backend/alembic/env.py`
+  Change: Added common composite indexes, aligned historical unique/nullability drift, and made Alembic metadata imports explicit.
+  Purpose: Improve query performance and make migration drift checks reliable.
+
+- `scripts/check_migration_drift.py`, `scripts/backup_database.py`, `scripts/restore_database.py`, `scripts/reset_demo_database.py`, `scripts/smoke_check.py`
+  Change: Added migration drift, backup, restore, reset, and smoke-check improvements.
+  Purpose: Give contributors repeatable persistence operations.
+
+- `.github/workflows/ci.yml`
+  Change: Added migration drift check to CI.
+  Purpose: Fail model/migration drift before it reaches shared environments.
+
+- `backend/Dockerfile`, `backend/docker-entrypoint.sh`, `frontend/Dockerfile`, `docker-compose.yml`, `.dockerignore`, `backend/.dockerignore`, `frontend/.dockerignore`
+  Change: Added app service images, startup migration entrypoint, Compose profiles, volumes, ports, and health checks.
+  Purpose: Let developers run app-only, app+Postgres, or full app+Postgres+Qdrant stacks.
+
+- `.env.example`, `backend/.env.example`, `docs/OPERATIONS_DEPLOYMENT.md`, `README.md`, `backend/README.md`, `scripts/README.md`, `docs/POST_BUILD_REMAINING_WORK.md`, `docs/CHANGE_LOG.md`
+  Change: Documented settings, Compose profiles, health checks, backup/restore/reset commands, and Step 12/13 completion status.
+  Purpose: Keep operational guidance aligned with implementation.
+
+- `backend/tests/test_health.py`
+  Change: Added tests for production-gated startup table creation.
+  Purpose: Prevent `create_all()` from becoming unconditional again.
+
+### Verification
+
+- Ran `python -m pytest tests\test_health.py -q`: 3 tests passed.
+- Ran `python -m pytest -q`: 44 tests passed, 1 skipped.
+- Ran `python -m compileall -q app ..\scripts`: passed.
+- Ran `python scripts\check_migration_drift.py`: Alembic upgrade plus `alembic check` passed with no new upgrade operations detected.
+- Ran `pnpm build`: passed.
+
+### Follow-Up Notes
+
+- Docker is not installed in this desktop shell, so `docker compose config` and image builds could not be executed locally in this pass.
+- The Next.js security advisory for `next@15.1.2` remains a dependency-hardening item.
+
+## 2026-06-25 - Entity Review And Graph Analytics Scale
+
+Area: Backend, Frontend, Entity Extraction, Graph, Analytics, Documentation
+
+Goal: Complete post-build steps 10 and 11 with configurable entity extraction, entity review workflows, richer relationship evidence, graph pagination/cache, analytics filters, and analytics export.
+
+### Files Changed
+
+- `backend/app/core/config.py`
+  Change: Added entity extraction provider settings, spaCy model setting, and graph cache TTL.
+  Purpose: Make extraction and graph caching configurable.
+
+- `backend/app/models/entity.py`, `backend/app/models/relationship.py`, `backend/alembic/versions/0013_entity_review_graph_analytics_scale.py`
+  Change: Added entity alias/review/provider fields and relationship confidence explanations.
+  Purpose: Persist merge/split review state and explain relationship confidence.
+
+- `backend/app/services/entity_extraction.py`
+  Change: Added provider abstraction with deterministic default and optional spaCy hook; added relationship types for associations, money, legal references, locations, and dated events.
+  Purpose: Mature extraction while keeping local deterministic behavior stable.
+
+- `backend/app/api/entities.py`, `backend/app/api/documents.py`, `backend/app/models/schemas.py`
+  Change: Exposed entity review metadata, relationship confidence explanations, and merge/split endpoints with audit events.
+  Purpose: Support alias normalization review workflows.
+
+- `backend/app/services/knowledge_graph.py`, `backend/app/api/graph.py`
+  Change: Added short-lived graph response caching and entity limit/offset paging.
+  Purpose: Keep large graph responses more manageable.
+
+- `backend/app/services/analytics.py`, `backend/app/api/analytics.py`
+  Change: Added custodian/date filters and CSV export for analytics dashboards.
+  Purpose: Let reviewers focus and export chart/table data.
+
+- `frontend/lib/api.ts`, `frontend/components/KnowledgeGraphView.tsx`, `frontend/components/AnalyticsDashboardView.tsx`, `frontend/app/page.tsx`
+  Change: Added graph paging controls, relationship confidence explanations, dashboard filters, and analytics export link.
+  Purpose: Surface scale controls in the review UI.
+
+- `backend/tests/test_graph.py`, `backend/tests/test_analytics.py`
+  Change: Added coverage for richer relationships, graph paging, entity merge/split, analytics filtering, and CSV export.
+  Purpose: Prevent regressions in entity review and scale workflows.
+
+- `docs/DATA_MODEL.md`, `docs/POST_BUILD_REMAINING_WORK.md`, `docs/CHANGE_LOG.md`
+  Change: Documented entity review fields, relationship explanations, and Step 10/11 completion status.
+  Purpose: Keep the project record aligned with implementation.
+
+### Verification
+
+- Ran `python -m pytest tests\test_graph.py tests\test_analytics.py -q`: 5 tests passed.
+- Ran `python -m pytest -q`: 42 tests passed, 1 skipped.
+- Ran `python -m compileall -q app`: passed.
+- Ran `python -m alembic upgrade head` against a temporary SQLite database: passed through `0013_entity_review_graph_analytics_scale`.
+- Ran `pnpm build`: passed; `/graph` and `/dashboard` compiled with the updated controls.
+
+### Follow-Up Notes
+
+- The spaCy provider is optional and falls back to deterministic extraction when the model is not installed.
+- Graph rendering is still SVG, but responses can now be paged server-side. Canvas/WebGL remains a future rendering upgrade if graph size demands it.
+- The Next.js security advisory for `next@15.1.2` remains a dependency-hardening item.
+
+## 2026-06-25 - AI Governance And Evaluation Maturity
+
+Area: Backend, Frontend, AI Assistant, Evaluation, Documentation
+
+Goal: Complete post-build steps 8 and 9 with governed assistant modes, per-matter AI policy, prompt redaction controls, richer benchmark metadata, extraction benchmarks, and evaluation summary/trend views.
+
+### Files Changed
+
+- `backend/app/models/matter.py`, `backend/alembic/versions/0012_ai_governance_evaluation_maturity.py`
+  Change: Added per-matter AI external-provider permission, redaction requirement, and allowed answer modes.
+  Purpose: Let matters govern whether and how AI provider workflows can run.
+
+- `backend/app/models/schemas.py`, `backend/app/api/matters.py`
+  Change: Added AI policy fields to matter schemas and JSON serialization for allowed modes.
+  Purpose: Expose matter AI governance through the existing matter API.
+
+- `backend/app/services/ai.py`, `backend/app/api/ai.py`
+  Change: Added answer modes, provider-policy enforcement, external prompt redaction, policy metadata, and richer audit details.
+  Purpose: Make assistant answers more useful while preserving cited, governed behavior.
+
+- `backend/app/services/evaluation.py`, `backend/app/api/evaluation.py`
+  Change: Added extraction benchmark execution plus summary and trend endpoints.
+  Purpose: Track retrieval, answer, extraction, classification, OCR-term, and benchmark quality over time.
+
+- `data/samples/evaluation_benchmarks.json`
+  Change: Added benchmark owner/triage metadata and extraction benchmark cases.
+  Purpose: Make benchmark failures easier to assign and diagnose.
+
+- `frontend/lib/api.ts`, `frontend/components/InvestigationAssistantView.tsx`, `frontend/app/evaluation/page.tsx`
+  Change: Added assistant mode/redaction controls, policy status, extraction evaluation runs, metric summaries, trend points, and triage metadata display.
+  Purpose: Surface governance and evaluation maturity in the UI.
+
+- `backend/tests/test_ai.py`, `backend/tests/test_evaluation.py`
+  Change: Added coverage for AI policy/redaction and extraction summaries/trends.
+  Purpose: Prevent regressions in governed assistant and evaluation workflows.
+
+- `docs/DATA_MODEL.md`, `docs/EVALUATION_DATASET_STRATEGY.md`, `docs/POST_BUILD_REMAINING_WORK.md`, `docs/CHANGE_LOG.md`
+  Change: Documented matter AI policy fields, expanded evaluation coverage, and Step 8/9 completion status.
+  Purpose: Keep the project record aligned with implementation.
+
+### Verification
+
+- Ran `python -m pytest tests\test_ai.py tests\test_evaluation.py -q`: 11 tests passed.
+- Ran `python -m pytest -q`: 41 tests passed, 1 skipped.
+- Ran `python -m compileall -q app`: passed.
+- Ran `python -m alembic upgrade head` against a temporary SQLite database: passed through `0012_ai_governance_evaluation_maturity`.
+- Ran `pnpm build`: passed; `/assistant` and `/evaluation` compiled with the updated controls.
+
+### Follow-Up Notes
+
+- Streaming provider responses and model-assisted judging are not yet fully implemented; this pass lays the policy, mode, redaction, and metric surfaces needed for them.
+- Per-matter AI policy is currently API-backed; a fuller admin UI for editing those settings can be added in a later hardening pass.
+- The Next.js security advisory for `next@15.1.2` remains a dependency-hardening item.
+
+## 2026-06-25 - Document Processing For Real Productions
+
+Area: Backend, Frontend, Document Processing, Documentation
+
+Goal: Complete post-build step 5 with child-document attachment persistence, processing stages and errors, reprocess/retry endpoints, broader lightweight extraction, and operational notes for OCR and reprocessing.
+
+### Files Changed
+
+- `backend/app/models/document.py`, `backend/alembic/versions/0011_document_families_reprocessing.py`
+  Change: Added parent/child document fields, attachment filename, processing stages, and processing error.
+  Purpose: Persist document family lineage and processing state.
+
+- `backend/app/services/text_extraction.py`
+  Change: Added structured attachment extraction plus HTML, RTF, XLSX, and ZIP text extraction.
+  Purpose: Cover more common production formats and provide payloads for child attachment documents.
+
+- `backend/app/services/ingestion.py`
+  Change: Refactored ingestion into reusable stages, persisted supported email attachments as child documents, added reprocess support, and tracked stage/error state.
+  Purpose: Make ingestion retryable and preserve attachment lineage.
+
+- `backend/app/api/documents.py`, `backend/app/models/schemas.py`
+  Change: Exposed family/stage fields and added `reprocess` and `retry/{stage}` endpoints.
+  Purpose: Let reviewers and admins inspect and rerun processing without direct database edits.
+
+- `frontend/lib/api.ts`, `frontend/app/documents/[documentId]/page.tsx`
+  Change: Added document family display, processing stages/errors, and reprocess controls.
+  Purpose: Surface production-processing state in the review UI.
+
+- `backend/tests/test_document_processing.py`
+  Change: Added coverage for child attachments, reprocessing, and HTML/RTF/XLSX/ZIP extraction.
+  Purpose: Prevent regressions in document-processing workflows.
+
+- `docs/DATA_MODEL.md`, `docs/DOCUMENT_PROCESSING_OPERATIONS.md`, `docs/POST_BUILD_REMAINING_WORK.md`, `docs/CHANGE_LOG.md`
+  Change: Documented new model fields, processing operations, and Step 5 completion status.
+  Purpose: Keep the project record aligned with implementation.
+
+### Verification
+
+- Ran `python -m pytest tests\test_document_processing.py tests\test_documents.py -q`: 10 tests passed.
+- Ran `python -m pytest -q`: 38 tests passed, 1 skipped.
+- Ran `python -m compileall -q app`: passed.
+- Ran `python -m alembic upgrade head` against a temporary SQLite database: passed through `0011_document_families_reprocessing`.
+- Ran direct Next build with bundled Node after pnpm install populated dependencies: passed.
+
+### Follow-Up Notes
+
+- OCR remains command-configured; `docs/DOCUMENT_PROCESSING_OPERATIONS.md` records the expected toolchain contract.
+- PST/MSG, standalone image OCR, independent archive-child persistence, and richer upload progress/large-file UX remain future production-hardening work.
+- The Next.js security advisory for `next@15.1.2` remains a dependency-hardening item.
+
+## 2026-06-25 - Document Review Coding And Search Maturity
+
+Area: Backend, Frontend, Search, Document Review
+
+Goal: Complete post-build steps 6 and 7 with review coding, source highlighting/navigation, richer search filters, saved-search management, and search diagnostics.
+
+### Files Changed
+
+- `backend/app/models/document.py`, `backend/app/models/saved_search.py`, `backend/alembic/versions/0010_review_coding_search_maturity.py`
+  Change: Added document review coding fields and saved-search sharing/update metadata.
+  Purpose: Persist reviewer decisions and repeatable review-set management.
+
+- `backend/app/models/schemas.py`
+  Change: Added document coding, search diagnostics, review filter, sort, and saved-search update/share schemas.
+  Purpose: Expose typed contracts for review and search maturity workflows.
+
+- `backend/app/api/documents.py`
+  Change: Added document coding update endpoint and explicit document serializers for tags, issue codes, privilege flag, and review status.
+  Purpose: Let reviewers code documents without direct database edits.
+
+- `backend/app/services/search.py`, `backend/app/services/vector_store.py`, `backend/app/api/search.py`
+  Change: Added phrase/exclusion parsing, review-coding filters, sender/recipient filters, sorting, diagnostics, saved-search update/delete/share, and Qdrant payload filters.
+  Purpose: Make search more repeatable, explainable, and useful for review-set workflows.
+
+- `frontend/lib/api.ts`, `frontend/app/page.tsx`, `frontend/app/documents/[documentId]/page.tsx`
+  Change: Added review coding controls, search-result highlighting, chunk previous/next navigation, expanded search filters, result diagnostics, and saved-search management controls.
+  Purpose: Give reviewers faster evidence navigation and practical coding/search controls in the UI.
+
+- `backend/tests/test_search_filters_saved_searches.py`
+  Change: Added coverage for coding updates, phrase/exclusion search, review filters, diagnostics, saved-search update/delete/share, and audit events.
+  Purpose: Prevent regressions in the new review/search workflows.
+
+- `docs/DATA_MODEL.md`, `docs/POST_BUILD_REMAINING_WORK.md`
+  Change: Documented new fields and marked steps 6 and 7 complete at first-pass level.
+  Purpose: Keep the project record aligned with implementation.
+
+### Verification
+
+- Ran `python -m pytest tests/test_search_filters_saved_searches.py tests/test_documents.py -q`: 6 tests passed.
+- Ran `python -m pytest -q`: 36 tests passed, 1 skipped.
+- Ran `python -m compileall -q app`: passed.
+- Ran `python -m alembic upgrade head` against a temporary SQLite database: passed through `0010_review_coding_search_maturity`.
+- Ran direct Next build with bundled Node after pnpm install populated dependencies: passed.
+
+### Follow-Up Notes
+
+- Search now supports exact quoted phrases and `NOT` exclusions. Full grouped Boolean logic can be added later if review teams need complex legal-search syntax.
+- The Next.js security advisory for `next@15.1.2` remains a dependency-hardening item.
+
+## 2026-06-24 - Production Identity And Audit Defensibility
+
+Area: Backend, Frontend, Documentation
+
+Goal: Complete post-build steps 3 and 4 with bearer-token auth support, tenant-aware actor context, request metadata on audit events, retention automation, and defensible audit exports.
+
+### Files Changed
+
+- `backend/app/core/config.py`, `.env.example`, `backend/.env.example`
+  Change: Added `AUTH_BEARER_ENABLED` and `AUDIT_PURGE_ON_STARTUP` settings.
+  Purpose: Allow bearer-token auth and scheduled audit retention to be enabled behind explicit flags.
+
+- `backend/app/core/auth.py`
+  Change: Added optional `Authorization: Bearer` credential resolution and tenant/organization fields on `Actor`.
+  Purpose: Prepare the auth layer for production identity gateways while preserving local API-key behavior.
+
+- `backend/app/models/user.py`, `backend/app/models/audit_log.py`, `backend/alembic/versions/0009_identity_audit_context.py`
+  Change: Added user `organization` and `tenant_id` fields plus audit request metadata columns.
+  Purpose: Persist identity context and request context in relational records.
+
+- `backend/app/services/audit.py`, `backend/app/main.py`
+  Change: Added request audit context, automatic `request.completed` events, actor context enrichment, and optional startup retention purge.
+  Purpose: Make audit rows explain who did what, from where, and under which request.
+
+- `backend/app/api/audit.py`
+  Change: Added request metadata filters, export manifests, `audit.export`, and manual retention purge audit events.
+  Purpose: Improve defensibility and traceability of audit review/export workflows.
+
+- `backend/app/services/ingestion.py`
+  Change: Added audit events for OCR failures and vector indexing failures.
+  Purpose: Surface lower-level processing failures in the audit trail.
+
+- `backend/app/api/admin.py`, `backend/app/models/schemas.py`
+  Change: Added tenant and organization fields to admin user contracts.
+  Purpose: Let admins maintain identity metadata.
+
+- `frontend/lib/api.ts`, `frontend/app/admin/page.tsx`, `frontend/app/audit/page.tsx`
+  Change: Added tenant/organization user fields and audit request metadata filters/table columns.
+  Purpose: Make the new backend controls visible in the UI.
+
+- `docs/PRODUCTION_IDENTITY_AND_AUDIT.md`, `docs/DATA_MODEL.md`, `docs/POST_BUILD_REMAINING_WORK.md`
+  Change: Documented identity modes, audit metadata, export manifests, retention behavior, and step completion.
+  Purpose: Keep project guidance aligned with the hardening work.
+
+- `backend/tests/test_workspace_management.py`
+  Change: Added coverage for bearer auth, actor context, request metadata, response-status events, and audit export manifests.
+  Purpose: Prevent regressions in auth and audit defensibility behavior.
+
+### Verification
+
+- Ran `python -m pytest tests/test_workspace_management.py tests/test_admin.py -q`: 6 tests passed.
+- Ran `python -m pytest -q`: 35 tests passed, 1 skipped.
+- Ran `python -m compileall -q app`: passed.
+- Ran `python -m alembic upgrade head` against a temporary SQLite database: passed through `0009_identity_audit_context`.
+- Ran direct Next build with bundled Node after pnpm install populated dependencies: passed.
+
+### Follow-Up Notes
+
+- Bearer-token mode currently resolves tokens against stored user API-key hashes. A future OIDC/SAML implementation should validate provider JWTs and map claims into the same `Actor` shape.
+
+## 2026-06-23 - Documentation Refresh And Admin Management
+
+Area: Backend, Frontend, Documentation
+
+Goal: Start the post-build backlog by refreshing stale planning/data docs and adding first-pass administration for users, roles, API keys, and matter assignments.
+
+### Files Changed
+
+- `backend/app/core/auth.py`
+  Change: Added a reusable `require_admin` guard.
+  Purpose: Keep admin-only API access consistent.
+
+- `backend/app/api/admin.py`
+  Change: Added admin endpoints for role list/create, user list/create/update/deactivate, API-key rotation, and matter membership list/create/update/delete.
+  Purpose: Let administrators manage local users and matter access without direct database edits.
+
+- `backend/app/models/schemas.py`
+  Change: Added admin role, user, API-key rotation, and matter membership schemas.
+  Purpose: Provide typed contracts for the new admin endpoints and frontend.
+
+- `backend/app/main.py`
+  Change: Registered the admin router under `/api/admin`.
+  Purpose: Expose admin management APIs.
+
+- `backend/tests/test_admin.py`
+  Change: Added tests for admin lifecycle behavior, key rotation, user deactivation, memberships, audit events, and non-admin denial.
+  Purpose: Prevent regressions in access-management behavior.
+
+- `frontend/lib/api.ts`
+  Change: Added typed admin API client functions and types.
+  Purpose: Connect the Next.js UI to the admin backend.
+
+- `frontend/app/admin/page.tsx`
+  Change: Added the admin page for role creation, user creation/update/deactivation, API-key rotation, and matter assignment management.
+  Purpose: Make matter isolation operationally manageable from the UI.
+
+- `frontend/app/page.tsx`
+  Change: Added an Admin navigation link.
+  Purpose: Make the new admin surface discoverable.
+
+- `docs/REMAINING_WORK.md`, `docs/ROADMAP.md`, `docs/NEXT_STEPS.md`, `docs/DATA_MODEL.md`, `docs/POST_BUILD_REMAINING_WORK.md`
+  Change: Replaced stale phase/backlog content with current system status, current data model details, and progress notes for post-build steps 1 and 2.
+  Purpose: Keep the project docs aligned with the actual implementation.
+
+### Verification
+
+- Ran `python -m pytest tests/test_admin.py -q`: 2 tests passed.
+- Ran `python -m pytest -q`: 33 tests passed, 1 skipped.
+- Ran `python -m compileall -q app`: passed.
+- Ran direct Next build with bundled Node after pnpm install populated dependencies: passed.
+
+### Follow-Up Notes
+
+- The admin UI assumes the current local API-key mode. Production identity-provider integration remains a separate hardening step.
+
+## 2026-06-23 - Dense Graph Layout And CI Smoke Checks
+
+Area: Frontend, CI, Scripts
+
+Goal: Complete build-order steps 9 and 10 with a denser graph layout and repeatable checks.
+
+### Files Changed
+
+- `frontend/components/KnowledgeGraphView.tsx`
+  Change: Replaced the radial layout with a deterministic force/cluster positioner, added collision handling, link attraction, selected-neighborhood emphasis, and stable bounds.
+  Purpose: Make larger relationship graphs more navigable while preserving existing filters and relationship review.
+
+- `.github/workflows/ci.yml`
+  Change: Added backend, frontend, and optional Docker-backed Qdrant smoke jobs.
+  Purpose: Verify backend tests, compile checks, migrations, frontend builds, and service-backed vector behavior in CI.
+
+- `scripts/smoke_check.py`, `scripts/README.md`
+  Change: Added a local smoke runner for backend tests, compile checks, migrations, optional frontend build, optional synthetic evaluation, and optional Qdrant integration tests.
+  Purpose: Make repeatable local verification easy without remembering several separate commands.
+
+- `README.md`, `docs/NEXT_BUILD_ORDER.md`
+  Change: Documented smoke checks, CI behavior, and step 9/10 completion status.
+  Purpose: Keep project guidance aligned with the final build-order work.
+
+### Verification
+
+- Ran `python scripts/smoke_check.py`: 31 tests passed, 1 skipped; backend compile passed; Alembic upgraded through head.
+- Ran direct Next build with bundled Node after pnpm install populated dependencies: passed.
+
+## 2026-06-23 - OCR, Attachment Extraction, And Saved Searches
+
+Area: Backend, Frontend, Search, Document Processing
+
+Goal: Complete build-order steps 7 and 8 with optional OCR execution, deeper email attachment extraction, advanced search filters, and saved search workflows.
+
+### Files Changed
+
+- `backend/app/services/text_extraction.py`, `backend/app/core/config.py`, `backend/.env.example`
+  Change: Added optional command-based PDF OCR and recursive supported attachment extraction for EML attachments.
+  Purpose: Let scanned PDFs produce searchable text when OCR tooling is configured and make supported binary attachments searchable.
+
+- `backend/app/services/search.py`, `backend/app/api/search.py`, `backend/app/models/schemas.py`
+  Change: Added custodian, document type, file type, status, and document date filters; added saved search endpoints.
+  Purpose: Support repeatable, narrowed eDiscovery searches.
+
+- `backend/app/models/saved_search.py`, `backend/app/models/__init__.py`, `backend/app/database.py`, `backend/alembic/versions/0008_saved_searches.py`
+  Change: Added persisted saved searches with query, filters, actor, and matter scope.
+  Purpose: Store reusable review searches in relational persistence.
+
+- `frontend/lib/api.ts`, `frontend/app/page.tsx`
+  Change: Added typed saved-search APIs and workspace controls for advanced filters, saving, and running saved searches.
+  Purpose: Let reviewers create and rerun filtered searches without raw API calls.
+
+- `backend/tests/test_document_processing.py`, `backend/tests/test_search_filters_saved_searches.py`
+  Change: Added coverage for OCR execution, DOCX attachment extraction, metadata-filtered search, saved search execution, and audit events.
+  Purpose: Prevent regressions in the new processing and review workflows.
+
+- `backend/README.md`, `frontend/README.md`, `docs/NEXT_BUILD_ORDER.md`
+  Change: Documented OCR settings, attachment extraction behavior, saved search endpoints/UI, and step 7/8 completion status.
+  Purpose: Keep developer guidance aligned with the implementation.
+
+### Verification
+
+- Ran `python -m pytest tests/test_document_processing.py tests/test_search_filters_saved_searches.py -q`: 7 tests passed.
+- Ran `python -m pytest -q`: 31 tests passed, 1 skipped.
+- Ran `python -m compileall -q app`: passed.
+- Ran direct Next build with bundled Node after pnpm install populated dependencies: passed.
+
+## 2026-06-23 - Qdrant Integration And Evaluation Dashboard
+
+Area: Backend, Frontend, Evaluation
+
+Goal: Complete build-order steps 5 and 6 by proving Qdrant-backed search behavior and exposing evaluation workflows in the UI.
+
+### Files Changed
+
+- `backend/app/services/vector_store.py`
+  Change: Added Qdrant matter-list filtering and limit handling for scoped searches.
+  Purpose: Let auth-scoped unfiltered searches use Qdrant without leaking cross-matter results.
+
+- `backend/app/services/search.py`
+  Change: Added explicit `auto`, `local`, and `qdrant` backend selection.
+  Purpose: Support fallback behavior and local-versus-Qdrant evaluation comparisons.
+
+- `backend/app/services/evaluation.py`, `backend/app/models/schemas.py`
+  Change: Added metric details to API responses and persisted Qdrant comparison metrics when Qdrant is enabled.
+  Purpose: Make ranking differences and failed benchmark context visible to reviewers.
+
+- `backend/tests/test_qdrant_integration.py`
+  Change: Added fallback, scoped Qdrant search, and Docker-backed Qdrant indexing/search/evaluation coverage.
+  Purpose: Verify Qdrant works end-to-end locally while keeping normal test runs clean when Qdrant is unavailable.
+
+- `frontend/lib/api.ts`, `frontend/app/evaluation/page.tsx`, `frontend/app/page.tsx`
+  Change: Added evaluation API client methods, a benchmark dashboard, and navigation.
+  Purpose: Let reviewers run retrieval, answer, or combined evaluations and inspect quality metrics from the frontend.
+
+- `backend/README.md`, `frontend/README.md`, `docs/NEXT_BUILD_ORDER.md`
+  Change: Documented Qdrant test commands, evaluation UI, and step 5/6 completion status.
+  Purpose: Keep build and verification guidance aligned with the implementation.
+
+### Verification
+
+- Pending in this shell: project Python dependencies, npm, and Docker CLI are not on PATH.
+- Structural verification performed by reviewing step 1-4 code paths before implementation.
+
 ## 2026-06-19 - Frontend Product Pass
 
 Area: Frontend
