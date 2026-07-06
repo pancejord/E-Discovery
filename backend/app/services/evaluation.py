@@ -6,14 +6,20 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.chunk import DocumentChunk
 from app.models.document import Document
+from app.models.entity import Entity
+from app.models.entity_mention import EntityMention
 from app.models.evaluation import EvaluationRun
+from app.models.relationship import Relationship
 from app.models.schemas import (
     AISource,
     BenchmarkCase,
     EvaluationMetric,
     EvaluationRunResponse,
+    EvaluationSummary,
+    EvaluationTrendPoint,
     HallucinationCheckResponse,
     SearchResult,
 )
@@ -100,6 +106,8 @@ def run_retrieval_evaluation(
             continue
         results = search_chunks(db, case.query, matter_id=matter_id, matter_ids=matter_ids, limit=limit)
         case_metrics = _evaluate_case(db, case, results, matter_id)
+        if settings.qdrant_enabled:
+            case_metrics.extend(_compare_search_backends(db, case, matter_id, matter_ids, limit))
         metrics.extend(case_metrics)
         for metric in case_metrics:
             db.add(metric)
@@ -148,6 +156,35 @@ def run_answer_evaluation(
     )
 
 
+def run_extraction_evaluation(
+    db: Session,
+    matter_id: int | None = None,
+    dataset_name: str = BENCHMARK_DATASET_NAME,
+    limit: int = 5,
+    matter_ids: list[int] | None = None,
+) -> EvaluationRunResponse:
+    metrics = []
+    for case in list_benchmarks(dataset_name):
+        if case.task_type != "extraction":
+            continue
+        results = search_chunks(db, case.query, matter_id=matter_id, matter_ids=matter_ids, limit=limit)
+        case_metrics = _evaluate_extraction_case(db, case, results, matter_id)
+        metrics.extend(case_metrics)
+        for metric in case_metrics:
+            db.add(metric)
+
+    if metrics:
+        db.commit()
+        for metric in metrics:
+            db.refresh(metric)
+
+    return EvaluationRunResponse(
+        dataset_name=dataset_name,
+        matter_id=matter_id,
+        metrics=[_metric_schema(metric) for metric in metrics],
+    )
+
+
 def list_evaluation_metrics(
     db: Session,
     matter_id: int | None = None,
@@ -159,6 +196,60 @@ def list_evaluation_metrics(
     elif matter_ids is not None:
         statement = statement.where(EvaluationRun.matter_id.in_(matter_ids))
     return [_metric_schema(metric) for metric in db.scalars(statement)]
+
+
+def list_evaluation_summaries(
+    db: Session,
+    matter_id: int | None = None,
+    matter_ids: list[int] | None = None,
+) -> list[EvaluationSummary]:
+    metrics = list_evaluation_metrics(db, matter_id=matter_id, matter_ids=matter_ids)
+    grouped: dict[tuple[str | None, str | None, str], list[EvaluationMetric]] = {}
+    for metric in metrics:
+        grouped.setdefault((metric.dataset_name, metric.task_type, metric.metric_name), []).append(metric)
+    summaries = []
+    for (dataset_name, task_type, metric_name), rows in grouped.items():
+        sorted_rows = sorted(rows, key=lambda row: row.created_at, reverse=True)
+        latest = sorted_rows[0]
+        average = sum(row.metric_value for row in rows) / len(rows)
+        summaries.append(
+            EvaluationSummary(
+                dataset_name=dataset_name,
+                task_type=task_type,
+                metric_name=metric_name,
+                run_count=len(rows),
+                latest_value=round(latest.metric_value, 4),
+                average_value=round(average, 4),
+                latest_created_at=latest.created_at,
+            )
+        )
+    return sorted(summaries, key=lambda summary: (summary.dataset_name or "", summary.metric_name))
+
+
+def list_evaluation_trends(
+    db: Session,
+    metric_name: str | None = None,
+    matter_id: int | None = None,
+    matter_ids: list[int] | None = None,
+    limit: int = 200,
+) -> list[EvaluationTrendPoint]:
+    statement = select(EvaluationRun).order_by(EvaluationRun.created_at.asc(), EvaluationRun.id.asc()).limit(limit)
+    if metric_name:
+        statement = statement.where(EvaluationRun.metric_name == metric_name)
+    if matter_id is not None:
+        statement = statement.where(EvaluationRun.matter_id == matter_id)
+    elif matter_ids is not None:
+        statement = statement.where(EvaluationRun.matter_id.in_(matter_ids))
+    return [
+        EvaluationTrendPoint(
+            metric_name=row.metric_name,
+            created_at=row.created_at,
+            metric_value=row.metric_value,
+            dataset_name=row.dataset_name,
+            case_id=row.case_id,
+        )
+        for row in db.scalars(statement)
+    ]
 
 
 def check_answer_grounding(db: Session, answer: str, citations: list[str]) -> HallucinationCheckResponse:
@@ -321,6 +412,16 @@ def _evaluate_case(
         "found_terms": found_terms,
         "result_count": len(results),
         "valid_citation_count": len(valid_citations),
+        "results": [
+            {
+                "document_id": result.document_id,
+                "chunk_id": result.chunk_id,
+                "title": result.title,
+                "citation": result.citation,
+                "source": result.source,
+            }
+            for result in results
+        ],
     }
     metric_values = {
         "retrieval_precision": precision,
@@ -330,6 +431,166 @@ def _evaluate_case(
     }
     return [
         _metric_record(case, matter_id, metric_name, metric_value, details)
+        for metric_name, metric_value in metric_values.items()
+    ]
+
+
+def _evaluate_extraction_case(
+    db: Session,
+    case: BenchmarkCase,
+    results: list[SearchResult],
+    matter_id: int | None,
+) -> list[EvaluationRun]:
+    document_ids = [result.document_id for result in results]
+    documents = []
+    if document_ids:
+        documents = list(db.scalars(select(Document).where(Document.id.in_(document_ids))))
+    combined_text = " ".join(
+        f"{document.original_filename} {document.extracted_text or ''}" for document in documents
+    ).lower()
+    found_terms = [term for term in case.expected_terms if term.lower() in combined_text]
+    expected_term_coverage = len(found_terms) / len(case.expected_terms) if case.expected_terms else 1.0
+
+    document_type_match = _document_type_match(documents, case.expected_document_type)
+    document_date_match = _document_date_match(documents, case.expected_document_date)
+    entity_coverage = _entity_coverage(db, document_ids, case.expected_entities)
+    relationship_coverage = _relationship_coverage(db, document_ids, case.expected_relationships)
+    ocr_term_coverage = _term_coverage(combined_text, case.expected_ocr_terms)
+    pass_rate = 1.0 if min(
+        expected_term_coverage,
+        document_type_match,
+        document_date_match,
+        entity_coverage,
+        relationship_coverage,
+        ocr_term_coverage,
+    ) >= 1.0 else 0.0
+
+    details = {
+        "query": case.query,
+        "expected_terms": case.expected_terms,
+        "found_terms": found_terms,
+        "expected_document_type": case.expected_document_type,
+        "expected_document_date": case.expected_document_date,
+        "expected_entities": case.expected_entities,
+        "expected_relationships": case.expected_relationships,
+        "expected_ocr_terms": case.expected_ocr_terms,
+        "owner": case.owner,
+        "triage_notes": case.triage_notes,
+        "document_ids": document_ids,
+    }
+    metric_values = {
+        "extraction_expected_term_coverage": expected_term_coverage,
+        "classification_match": document_type_match,
+        "document_date_match": document_date_match,
+        "entity_coverage": entity_coverage,
+        "relationship_coverage": relationship_coverage,
+        "ocr_term_coverage": ocr_term_coverage,
+        "extraction_benchmark_pass": pass_rate,
+    }
+    return [
+        _metric_record(case, matter_id, metric_name, metric_value, details)
+        for metric_name, metric_value in metric_values.items()
+    ]
+
+
+def _document_type_match(documents: list[Document], expected_document_type: str | None) -> float:
+    if not expected_document_type:
+        return 1.0
+    return 1.0 if any((document.document_type or "").lower() == expected_document_type.lower() for document in documents) else 0.0
+
+
+def _document_date_match(documents: list[Document], expected_document_date: str | None) -> float:
+    if not expected_document_date:
+        return 1.0
+    return 1.0 if any(document.document_date and document.document_date.date().isoformat() == expected_document_date for document in documents) else 0.0
+
+
+def _entity_coverage(db: Session, document_ids: list[int], expected_entities: list[str]) -> float:
+    if not expected_entities:
+        return 1.0
+    if not document_ids:
+        return 0.0
+    rows = db.execute(
+        select(Entity.name)
+        .join(EntityMention, EntityMention.entity_id == Entity.id)
+        .where(EntityMention.document_id.in_(document_ids))
+    ).all()
+    names = {row[0].lower() for row in rows}
+    found = [name for name in expected_entities if name.lower() in names]
+    return len(found) / len(expected_entities)
+
+
+def _relationship_coverage(db: Session, document_ids: list[int], expected_relationships: list[str]) -> float:
+    if not expected_relationships:
+        return 1.0
+    if not document_ids:
+        return 0.0
+    rows = db.scalars(select(Relationship.relationship_type).where(Relationship.document_id.in_(document_ids))).all()
+    relationship_types = {relationship_type.lower() for relationship_type in rows}
+    found = [relationship for relationship in expected_relationships if relationship.lower() in relationship_types]
+    return len(found) / len(expected_relationships)
+
+
+def _term_coverage(text: str, expected_terms: list[str]) -> float:
+    if not expected_terms:
+        return 1.0
+    found = [term for term in expected_terms if term.lower() in text]
+    return len(found) / len(expected_terms)
+
+
+def _compare_search_backends(
+    db: Session,
+    case: BenchmarkCase,
+    matter_id: int | None,
+    matter_ids: list[int] | None,
+    limit: int,
+) -> list[EvaluationRun]:
+    local_results = search_chunks(
+        db,
+        case.query,
+        matter_id=matter_id,
+        matter_ids=matter_ids,
+        limit=limit,
+        backend="local",
+    )
+    qdrant_results = search_chunks(
+        db,
+        case.query,
+        matter_id=matter_id,
+        matter_ids=matter_ids,
+        limit=limit,
+        backend="qdrant",
+    )
+    local_chunk_ids = [result.chunk_id for result in local_results]
+    qdrant_chunk_ids = [result.chunk_id for result in qdrant_results]
+    local_set = set(local_chunk_ids)
+    qdrant_set = set(qdrant_chunk_ids)
+    denominator = len(local_set | qdrant_set)
+    overlap = len(local_set & qdrant_set) / denominator if denominator else 0.0
+    top_match = 1.0 if local_chunk_ids and qdrant_chunk_ids and local_chunk_ids[0] == qdrant_chunk_ids[0] else 0.0
+
+    details = {
+        "query": case.query,
+        "local_chunk_ids": local_chunk_ids,
+        "qdrant_chunk_ids": qdrant_chunk_ids,
+        "local_citations": [result.citation for result in local_results if result.citation],
+        "qdrant_citations": [result.citation for result in qdrant_results if result.citation],
+    }
+    metric_values = {
+        "qdrant_local_result_overlap": overlap,
+        "qdrant_local_top_result_match": top_match,
+        "qdrant_result_count_delta": abs(len(qdrant_results) - len(local_results)),
+    }
+    return [
+        EvaluationRun(
+            matter_id=matter_id,
+            dataset_name=case.dataset_name,
+            case_id=case.id,
+            task_type="retrieval",
+            metric_name=metric_name,
+            metric_value=round(metric_value, 4),
+            details=details,
+        )
         for metric_name, metric_value in metric_values.items()
     ]
 
@@ -404,6 +665,7 @@ def _metric_schema(metric: EvaluationRun) -> EvaluationMetric:
         task_type=metric.task_type,
         metric_name=metric.metric_name,
         metric_value=metric.metric_value,
+        details=metric.details,
         created_at=metric.created_at,
     )
 
@@ -448,6 +710,13 @@ def _load_benchmarks_from_file() -> list[BenchmarkCase]:
                         query=case["query"],
                         expected_terms=list(case.get("expected_terms", [])),
                         minimum_citation_count=int(case.get("minimum_citation_count", 1)),
+                        owner=case.get("owner"),
+                        triage_notes=case.get("triage_notes"),
+                        expected_document_type=case.get("expected_document_type"),
+                        expected_document_date=case.get("expected_document_date"),
+                        expected_entities=list(case.get("expected_entities", [])),
+                        expected_relationships=list(case.get("expected_relationships", [])),
+                        expected_ocr_terms=list(case.get("expected_ocr_terms", [])),
                     )
                 )
             except (KeyError, TypeError, ValueError):

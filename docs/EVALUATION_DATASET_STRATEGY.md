@@ -28,8 +28,10 @@ Each benchmark production should include:
 - A set of synthetic documents.
 - Retrieval benchmark cases.
 - Generated-answer benchmark cases.
+- Extraction benchmark cases for classification, document dates, entities, relationships, and OCR terms.
 - Expected facts or terms.
 - Expected citation count.
+- Benchmark owner and failure triage notes.
 - Optional negative cases where the answer should say the documents do not establish the claim.
 
 Useful synthetic document categories:
@@ -77,6 +79,24 @@ Examples:
 - Ask whether a person admitted liability when no source says that.
 - Ask for a court ruling that is not present in the production.
 
+### Extraction Evaluation
+
+Measure whether processing produced the expected document metadata and structured facts.
+
+Metrics:
+
+- Expected-term coverage.
+- Classification match.
+- Document-date match.
+- Entity coverage.
+- Relationship coverage.
+- OCR-term coverage.
+- Extraction benchmark pass/fail.
+
+### Trend And Triage Review
+
+Persisted metric rows can be summarized through `/api/evaluation/summaries` and trended through `/api/evaluation/trends`. Benchmark cases should include an owner and triage notes so failed runs have a clear reviewer and next diagnostic step.
+
 ## When To Use Real Data
 
 Use real data only when all of these are true:
@@ -89,4 +109,4 @@ Use real data only when all of these are true:
 
 ## Immediate Next Step
 
-Create a mixed synthetic production with multiple document types, expected retrieval cases, expected answer cases, and negative cases. Use that to harden the evaluation harness before bringing in any external corpus.
+Keep expanding the mixed synthetic production with pleadings, orders, discovery responses, chat exports, spreadsheets, distractors, retrieval cases, answer cases, extraction cases, and negative cases. Use that to harden the evaluation harness before bringing in any external corpus.

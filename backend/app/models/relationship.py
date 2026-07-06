@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, String
+from sqlalchemy import DateTime, Float, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -9,6 +9,9 @@ from app.utils.time import utc_now
 
 class Relationship(Base):
     __tablename__ = "relationships"
+    __table_args__ = (
+        Index("ix_relationships_matter_type_confidence", "matter_id", "relationship_type", "confidence"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     matter_id: Mapped[int | None] = mapped_column(ForeignKey("matters.id"), index=True)
@@ -18,6 +21,7 @@ class Relationship(Base):
     document_id: Mapped[int | None] = mapped_column(ForeignKey("documents.id"), index=True)
     confidence: Mapped[float] = mapped_column(Float, default=0.5, nullable=False)
     evidence: Mapped[str | None] = mapped_column(String(1200))
+    confidence_explanation: Mapped[str | None] = mapped_column(String(1200))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     source_entity = relationship("Entity", back_populates="source_relationships", foreign_keys=[source_entity_id])

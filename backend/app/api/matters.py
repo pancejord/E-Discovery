@@ -1,3 +1,5 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -38,7 +40,9 @@ def create_matter(
     db: Session = Depends(get_db),
     actor: Actor = Depends(get_actor),
 ) -> Matter:
-    matter = Matter(**request.model_dump())
+    payload = request.model_dump()
+    payload["ai_allowed_modes"] = json.dumps(payload.get("ai_allowed_modes") or [])
+    matter = Matter(**payload)
     db.add(matter)
     try:
         db.commit()
@@ -81,7 +85,10 @@ def update_matter(
     if matter is None:
         raise HTTPException(status_code=404, detail="Matter not found")
 
-    for key, value in request.model_dump(exclude_unset=True).items():
+    payload = request.model_dump(exclude_unset=True)
+    if "ai_allowed_modes" in payload:
+        payload["ai_allowed_modes"] = json.dumps(payload["ai_allowed_modes"] or [])
+    for key, value in payload.items():
         setattr(matter, key, value)
     try:
         db.commit()

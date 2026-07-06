@@ -21,10 +21,14 @@ def build_analytics_dashboard(
     db: Session,
     matter_id: int | None = None,
     matter_ids: list[int] | None = None,
+    custodian_id: int | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
 ) -> AnalyticsDashboard:
-    documents = _load_documents(db, matter_id, matter_ids)
+    documents = _load_documents(db, matter_id, matter_ids, custodian_id, date_from, date_to)
+    document_ids = {document.id for document in documents}
     entities = _load_entities(db, matter_id, matter_ids)
-    relationships = _load_relationships(db, matter_id, matter_ids)
+    relationships = _load_relationships(db, matter_id, matter_ids, document_ids)
     custodians = _load_custodians(db)
 
     file_type_counts = _count_values(document.file_type for document in documents)
@@ -53,12 +57,25 @@ def build_analytics_dashboard(
     )
 
 
-def _load_documents(db: Session, matter_id: int | None, matter_ids: list[int] | None) -> list[Document]:
+def _load_documents(
+    db: Session,
+    matter_id: int | None,
+    matter_ids: list[int] | None,
+    custodian_id: int | None,
+    date_from: datetime | None,
+    date_to: datetime | None,
+) -> list[Document]:
     statement = select(Document)
     if matter_id is not None:
         statement = statement.where(Document.matter_id == matter_id)
     elif matter_ids is not None:
         statement = statement.where(Document.matter_id.in_(matter_ids))
+    if custodian_id is not None:
+        statement = statement.where(Document.custodian_id == custodian_id)
+    if date_from is not None:
+        statement = statement.where(Document.document_date >= date_from)
+    if date_to is not None:
+        statement = statement.where(Document.document_date <= date_to)
     return list(db.scalars(statement))
 
 
@@ -71,12 +88,21 @@ def _load_entities(db: Session, matter_id: int | None, matter_ids: list[int] | N
     return list(db.scalars(statement))
 
 
-def _load_relationships(db: Session, matter_id: int | None, matter_ids: list[int] | None) -> list[Relationship]:
+def _load_relationships(
+    db: Session,
+    matter_id: int | None,
+    matter_ids: list[int] | None,
+    document_ids: set[int],
+) -> list[Relationship]:
     statement = select(Relationship)
     if matter_id is not None:
         statement = statement.where(Relationship.matter_id == matter_id)
     elif matter_ids is not None:
         statement = statement.where(Relationship.matter_id.in_(matter_ids))
+    if document_ids:
+        statement = statement.where(Relationship.document_id.in_(document_ids))
+    else:
+        statement = statement.where(Relationship.document_id.is_(None))
     return list(db.scalars(statement))
 
 

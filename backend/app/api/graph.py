@@ -17,6 +17,8 @@ def get_knowledge_graph(
     relationship_type: str | None = None,
     min_confidence: float = 0.0,
     entity_limit: int = 250,
+    entity_offset: int = 0,
+    use_cache: bool = True,
     actor: Actor = Depends(get_actor),
 ) -> KnowledgeGraphResponse:
     require_matter_access(db, actor, matter_id)
@@ -27,7 +29,9 @@ def get_knowledge_graph(
         matter_ids=matter_ids,
         relationship_type=relationship_type,
         min_confidence=min_confidence,
-        entity_limit=entity_limit,
+        entity_limit=min(max(entity_limit, 1), 500),
+        entity_offset=max(entity_offset, 0),
+        use_cache=use_cache,
     )
 
 

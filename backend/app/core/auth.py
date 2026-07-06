@@ -10,7 +10,7 @@ from app.database import get_db
 from app.models.matter_membership import MatterMembership
 from app.models.role import Role
 from app.models.user import User
-from app.services.audit import record_audit_event
+from app.services.audit import record_audit_event, update_audit_context
 
 
 @dataclass(frozen=True)
@@ -20,41 +20,77 @@ class Actor:
     user_id: int | None = None
     role_name: str | None = None
     is_admin: bool = False
+    organization: str | None = None
+    tenant_id: str | None = None
+    auth_scheme: str | None = None
 
 
 def get_actor(
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    authorization: str | None = Header(default=None, alias="Authorization"),
     db: Session = Depends(get_db),
 ) -> Actor:
     if not settings.auth_enabled:
-        return Actor(name="local-dev", authenticated=False, is_admin=True)
+        actor = Actor(name="local-dev", authenticated=False, is_admin=True, auth_scheme="local-dev")
+        update_audit_context(auth_scheme=actor.auth_scheme)
+        return actor
 
-    if not x_api_key:
-        raise HTTPException(status_code=401, detail="Valid X-API-Key required")
+    credential = _resolve_credential(x_api_key, authorization)
+    if credential is None:
+        raise HTTPException(status_code=401, detail="Valid X-API-Key or bearer token required")
 
-    user = db.scalar(select(User).where(User.api_key_hash == hash_api_key(x_api_key), User.is_active.is_(True)))
+    token, auth_scheme = credential
+    user = db.scalar(select(User).where(User.api_key_hash == hash_api_key(token), User.is_active.is_(True)))
     if user is None:
+        update_audit_context(auth_scheme=auth_scheme)
         record_audit_event(
             db,
             action="auth.denied",
             actor="unknown",
             summary="Rejected API key authentication",
-            details={"reason": "invalid_api_key"},
+            details={"reason": "invalid_credential", "auth_scheme": auth_scheme},
         )
-        raise HTTPException(status_code=401, detail="Valid X-API-Key required")
+        raise HTTPException(status_code=401, detail="Valid X-API-Key or bearer token required")
 
     role = db.get(Role, user.role_id) if user.role_id else None
-    return Actor(
+    actor = Actor(
         name=user.email,
         authenticated=True,
         user_id=user.id,
         role_name=role.name if role else None,
         is_admin=bool(role and role.is_admin),
+        organization=user.organization,
+        tenant_id=user.tenant_id,
+        auth_scheme=auth_scheme,
     )
+    update_audit_context(
+        actor_user_id=actor.user_id,
+        actor_role=actor.role_name,
+        actor_tenant_id=actor.tenant_id,
+        actor_organization=actor.organization,
+        auth_scheme=actor.auth_scheme,
+    )
+    return actor
 
 
 def hash_api_key(api_key: str) -> str:
     return sha256(api_key.encode("utf-8")).hexdigest()
+
+
+def _resolve_credential(x_api_key: str | None, authorization: str | None) -> tuple[str, str] | None:
+    if x_api_key:
+        return x_api_key, "api_key"
+    if settings.auth_bearer_enabled and authorization:
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() == "bearer" and token:
+            return token, "bearer"
+    return None
+
+
+def require_admin(actor: Actor) -> None:
+    if actor.is_admin:
+        return
+    raise HTTPException(status_code=403, detail="Admin role required")
 
 
 def require_matter_access(db: Session, actor: Actor, matter_id: int | None) -> None:

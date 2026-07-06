@@ -22,9 +22,10 @@ Verified on 2026-06-21. The build covers `/`, `/assistant`, `/audit`, `/dashboar
 
 ## Pages
 
-- `/` - investigation workspace with live matter metrics, matter/custodian setup, upload, search, and recent documents.
+- `/` - investigation workspace with live matter metrics, matter/custodian setup, upload, advanced search filters, saved searches, and recent documents.
 - `/assistant` - cited investigation assistant backed by `/api/ai/answer`.
 - `/audit` - audit review and export UI backed by `/api/audit`.
 - `/dashboard` - Plotly analytics dashboard backed by `/api/analytics/dashboard`.
+- `/evaluation` - evaluation run history, pass/fail review, answer-quality metrics, and Qdrant comparison signals backed by `/api/evaluation`.
 - `/graph` - knowledge graph visualization backed by `/api/graph`, with matter, relationship, entity type, entity search, and confidence filters.
 - `/documents/[documentId]` - source review page with metadata, processing notes, extracted text, entities, relationships, and citation chunks.

@@ -15,6 +15,8 @@ class User(Base):
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     api_key_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     role_id: Mapped[int | None] = mapped_column(ForeignKey("roles.id"), index=True)
+    organization: Mapped[str | None] = mapped_column(String(255), index=True)
+    tenant_id: Mapped[str | None] = mapped_column(String(100), index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 

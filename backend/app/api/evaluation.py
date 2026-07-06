@@ -8,6 +8,8 @@ from app.models.schemas import (
     EvaluationMetric,
     EvaluationRunRequest,
     EvaluationRunResponse,
+    EvaluationSummary,
+    EvaluationTrendPoint,
     HallucinationCheckRequest,
     HallucinationCheckResponse,
 )
@@ -16,7 +18,10 @@ from app.services.evaluation import (
     check_answer_grounding,
     list_benchmarks,
     list_evaluation_metrics,
+    list_evaluation_summaries,
+    list_evaluation_trends,
     run_answer_evaluation,
+    run_extraction_evaluation,
     run_retrieval_evaluation,
 )
 
@@ -39,6 +44,36 @@ def list_metrics(
     return list_evaluation_metrics(db, matter_id=matter_id, matter_ids=matter_ids)
 
 
+@router.get("/summaries", response_model=list[EvaluationSummary])
+def list_summaries(
+    db: Session = Depends(get_db),
+    actor: Actor = Depends(get_actor),
+    matter_id: int | None = None,
+) -> list[EvaluationSummary]:
+    require_matter_access(db, actor, matter_id)
+    matter_ids = accessible_matter_ids(db, actor) if matter_id is None else None
+    return list_evaluation_summaries(db, matter_id=matter_id, matter_ids=matter_ids)
+
+
+@router.get("/trends", response_model=list[EvaluationTrendPoint])
+def list_trends(
+    db: Session = Depends(get_db),
+    actor: Actor = Depends(get_actor),
+    matter_id: int | None = None,
+    metric_name: str | None = None,
+    limit: int = 200,
+) -> list[EvaluationTrendPoint]:
+    require_matter_access(db, actor, matter_id)
+    matter_ids = accessible_matter_ids(db, actor) if matter_id is None else None
+    return list_evaluation_trends(
+        db,
+        metric_name=metric_name,
+        matter_id=matter_id,
+        matter_ids=matter_ids,
+        limit=min(max(limit, 1), 500),
+    )
+
+
 @router.post("/run", response_model=EvaluationRunResponse)
 def run_evaluation(
     request: EvaluationRunRequest,
@@ -49,6 +84,14 @@ def run_evaluation(
     matter_ids = accessible_matter_ids(db, actor) if request.matter_id is None else None
     if request.task_type == "answer":
         response = run_answer_evaluation(
+            db,
+            matter_id=request.matter_id,
+            dataset_name=request.dataset_name,
+            limit=request.limit,
+            matter_ids=matter_ids,
+        )
+    elif request.task_type == "extraction":
+        response = run_extraction_evaluation(
             db,
             matter_id=request.matter_id,
             dataset_name=request.dataset_name,
@@ -70,10 +113,17 @@ def run_evaluation(
             limit=request.limit,
             matter_ids=matter_ids,
         )
+        extraction_response = run_extraction_evaluation(
+            db,
+            matter_id=request.matter_id,
+            dataset_name=request.dataset_name,
+            limit=request.limit,
+            matter_ids=matter_ids,
+        )
         response = EvaluationRunResponse(
             dataset_name=request.dataset_name,
             matter_id=request.matter_id,
-            metrics=[*retrieval_response.metrics, *answer_response.metrics],
+            metrics=[*retrieval_response.metrics, *answer_response.metrics, *extraction_response.metrics],
         )
     else:
         response = run_retrieval_evaluation(

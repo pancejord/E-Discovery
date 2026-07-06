@@ -19,6 +19,7 @@ export default function AuditPage() {
   const [events, setEvents] = useState<AuditLog[]>([]);
   const [filters, setFilters] = useState<AuditFilters>({ limit: 100 });
   const [documentId, setDocumentId] = useState("");
+  const [responseStatus, setResponseStatus] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,6 +49,7 @@ export default function AuditPage() {
     const nextFilters = {
       ...filters,
       documentId: documentId ? Number(documentId) : undefined,
+      responseStatus: responseStatus ? Number(responseStatus) : undefined,
     };
     setFilters(nextFilters);
     void refresh(nextFilters);
@@ -59,7 +61,7 @@ export default function AuditPage() {
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-accent">Audit Review</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-accent">LegalSight Audit</p>
               <h1 className="mt-2 text-3xl font-semibold text-ink">Activity history</h1>
               <p className="mt-2 text-sm text-slate-600">
                 Review matter activity, permission denials, ingestion failures, searches, AI answers, and exports.
@@ -137,6 +139,43 @@ export default function AuditPage() {
               <input className="form-field" value={documentId} onChange={(event) => setDocumentId(event.target.value)} />
             </label>
             <label className="block">
+              <span className="form-label">Request ID</span>
+              <input
+                className="form-field"
+                value={filters.requestId ?? ""}
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, requestId: event.target.value || undefined }))
+                }
+              />
+            </label>
+            <label className="block">
+              <span className="form-label">Method</span>
+              <select
+                className="form-field"
+                value={filters.method ?? ""}
+                onChange={(event) => setFilters((current) => ({ ...current, method: event.target.value || undefined }))}
+              >
+                <option value="">Any method</option>
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PATCH">PATCH</option>
+                <option value="DELETE">DELETE</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="form-label">Route</span>
+              <input
+                className="form-field"
+                value={filters.route ?? ""}
+                onChange={(event) => setFilters((current) => ({ ...current, route: event.target.value || undefined }))}
+                placeholder="/api/search"
+              />
+            </label>
+            <label className="block">
+              <span className="form-label">Status</span>
+              <input className="form-field" value={responseStatus} onChange={(event) => setResponseStatus(event.target.value)} />
+            </label>
+            <label className="block">
               <span className="form-label">From</span>
               <input
                 className="form-field"
@@ -171,12 +210,14 @@ export default function AuditPage() {
             <p className="text-sm text-slate-600">{isLoading ? "Loading..." : `${events.length} event(s)`}</p>
           </div>
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[880px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[1120px] border-collapse text-left text-sm">
               <thead className="border-b border-line text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="py-2 pr-3">Time</th>
                   <th className="py-2 pr-3">Actor</th>
                   <th className="py-2 pr-3">Action</th>
+                  <th className="py-2 pr-3">Request</th>
+                  <th className="py-2 pr-3">Status</th>
                   <th className="py-2 pr-3">Matter</th>
                   <th className="py-2 pr-3">Document</th>
                   <th className="py-2 pr-3">Summary</th>
@@ -188,6 +229,11 @@ export default function AuditPage() {
                     <td className="py-3 pr-3 text-slate-600">{new Date(event.created_at).toLocaleString()}</td>
                     <td className="py-3 pr-3">{event.actor ?? "unknown"}</td>
                     <td className="py-3 pr-3 font-semibold text-ink">{event.action}</td>
+                    <td className="py-3 pr-3">
+                      <p>{[event.method, event.route].filter(Boolean).join(" ") || "-"}</p>
+                      <p className="mt-1 text-xs text-slate-500">{event.request_id ?? "-"}</p>
+                    </td>
+                    <td className="py-3 pr-3">{event.response_status ?? "-"}</td>
                     <td className="py-3 pr-3">{event.matter_id ?? "-"}</td>
                     <td className="py-3 pr-3">{event.document_id ?? "-"}</td>
                     <td className="py-3 pr-3 text-slate-700">{event.summary ?? "-"}</td>

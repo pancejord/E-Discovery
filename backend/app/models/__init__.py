@@ -10,6 +10,7 @@ from app.models.matter_membership import MatterMembership
 from app.models.matter import Matter
 from app.models.relationship import Relationship
 from app.models.role import Role
+from app.models.saved_search import SavedSearch
 from app.models.user import User
 
 __all__ = [
@@ -24,5 +25,6 @@ __all__ = [
     "Matter",
     "Relationship",
     "Role",
+    "SavedSearch",
     "User",
 ]

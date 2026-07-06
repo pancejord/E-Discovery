@@ -1,13 +1,17 @@
 from collections import defaultdict
+from time import monotonic
 
 import networkx as nx
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.entity import Entity
 from app.models.entity_mention import EntityMention
 from app.models.relationship import Relationship
 from app.models.schemas import GraphEdge, GraphMetrics, GraphNode, KnowledgeGraphResponse
+
+_GRAPH_CACHE: dict[tuple, tuple[float, KnowledgeGraphResponse]] = {}
 
 
 def build_knowledge_graph(
@@ -17,8 +21,22 @@ def build_knowledge_graph(
     relationship_type: str | None = None,
     min_confidence: float = 0.0,
     entity_limit: int = 250,
+    entity_offset: int = 0,
+    use_cache: bool = True,
 ) -> KnowledgeGraphResponse:
-    entities = _load_entities(db, matter_id, entity_limit, matter_ids=matter_ids)
+    cache_key = (
+        matter_id,
+        tuple(matter_ids or []),
+        relationship_type,
+        min_confidence,
+        entity_limit,
+        entity_offset,
+    )
+    if use_cache:
+        cached = _GRAPH_CACHE.get(cache_key)
+        if cached and monotonic() - cached[0] <= settings.graph_cache_ttl_seconds:
+            return cached[1]
+    entities = _load_entities(db, matter_id, entity_limit, entity_offset=entity_offset, matter_ids=matter_ids)
     relationships = _load_relationships(
         db,
         entity_ids=set(entities),
@@ -27,7 +45,10 @@ def build_knowledge_graph(
         relationship_type=relationship_type,
         min_confidence=min_confidence,
     )
-    return _response_from_graph(entities, relationships, _load_mention_counts(db, set(entities)))
+    response = _response_from_graph(entities, relationships, _load_mention_counts(db, set(entities)))
+    if use_cache:
+        _GRAPH_CACHE[cache_key] = (monotonic(), response)
+    return response
 
 
 def build_neighborhood(
@@ -114,6 +135,7 @@ def _load_entities(
     db: Session,
     matter_id: int | None,
     limit: int,
+    entity_offset: int = 0,
     scope_to_matter: bool = False,
     matter_ids: list[int] | None = None,
 ) -> dict[int, Entity]:
@@ -129,7 +151,11 @@ def _load_entities(
         statement = statement.where(Entity.matter_id.in_(matter_ids))
     elif scope_to_matter:
         statement = statement.where(Entity.matter_id.is_(None))
-    statement = statement.order_by(func.coalesce(mention_counts.c.mention_count, 0).desc(), Entity.name).limit(limit)
+    statement = (
+        statement.order_by(func.coalesce(mention_counts.c.mention_count, 0).desc(), Entity.name)
+        .offset(entity_offset)
+        .limit(limit)
+    )
     return {entity.id: entity for entity in db.scalars(statement)}
 
 
@@ -210,6 +236,9 @@ def _edge_schemas(relationships: list[Relationship]) -> list[GraphEdge]:
     for (source_id, target_id, relationship_type), group in grouped.items():
         document_ids = sorted({relationship.document_id for relationship in group if relationship.document_id is not None})
         evidence = [relationship.evidence for relationship in group if relationship.evidence]
+        confidence_explanations = [
+            relationship.confidence_explanation for relationship in group if relationship.confidence_explanation
+        ]
         average_confidence = sum(relationship.confidence for relationship in group) / len(group)
         edges.append(
             GraphEdge(
@@ -221,6 +250,7 @@ def _edge_schemas(relationships: list[Relationship]) -> list[GraphEdge]:
                 confidence=round(average_confidence, 4),
                 document_ids=document_ids,
                 evidence=evidence[:5],
+                confidence_explanations=confidence_explanations[:5],
             )
         )
     return sorted(edges, key=lambda edge: (edge.relationship_type, edge.source, edge.target))

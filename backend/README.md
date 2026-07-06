@@ -25,7 +25,16 @@ The document router is available at both `/documents` and `/api/documents`.
 - `DELETE /documents/{document_id}` - delete the record and stored file.
 
 Uploaded originals are saved under `UPLOAD_DIR`, which defaults to `storage/uploads`.
-Uploads are parsed for supported text sources (`txt`, `md`, `csv`, `pdf`, `docx`, and `eml`) and chunked for search.
+Uploads are parsed for supported text sources (`txt`, `md`, `csv`, `pdf`, `docx`, and `eml`) and chunked for search. Email attachments are inventoried; supported attachments (`txt`, `csv`, `tsv`, `md`, `log`, `docx`, `pdf`, and nested `eml`) are recursively text-extracted into the parent document text. Unsupported attachment types add processing warnings that appear in document detail views.
+
+Blank or scanned PDFs first use normal PDF text extraction. If no text is available, OCR can run when configured:
+
+```powershell
+$env:OCR_ENABLED = "true"
+$env:OCR_PDF_TO_TEXT_COMMAND = "your-ocr-command {input}"
+```
+
+The command must write extracted text to stdout. When OCR is not configured or fails, the document is marked `needs_ocr` with processing warnings.
 
 ## Matter And Custodian APIs
 
@@ -40,9 +49,24 @@ Uploads are parsed for supported text sources (`txt`, `md`, `csv`, `pdf`, `docx`
 
 ## Search API
 
-- `POST /api/search` - search parsed document chunks and return citation-bearing results.
+- `POST /api/search` - search parsed document chunks and return citation-bearing results. Supports optional `matter_id`, `custodian_id`, `document_type`, `file_type`, `processing_status`, `date_from`, and `date_to` filters.
+- `GET /api/search/saved` - list saved searches, optionally scoped by `matter_id`.
+- `POST /api/search/saved` - save a query and filter set.
+- `POST /api/search/saved/{saved_search_id}/run` - execute a saved search.
 
 Search uses persisted chunk embeddings for local development. Set `QDRANT_ENABLED=true` to index chunks into Qdrant and query Qdrant first, with database-backed search as a fallback.
+Metadata-filtered searches use local SQL-backed retrieval so filters are applied consistently. Saved search creation and execution create `saved_search.create` and `saved_search.run` audit events.
+
+To run the Docker-backed Qdrant integration test locally, start Qdrant from the repository root and run the targeted test file:
+
+```powershell
+docker compose up -d qdrant
+cd backend
+$env:QDRANT_ENABLED = "true"
+python -m pytest tests/test_qdrant_integration.py -q
+```
+
+The integration test seeds chunks through the upload API, verifies Qdrant indexing, hydrates Qdrant hits back into citation-bearing search results, and records local-versus-Qdrant comparison metrics during evaluation. If Qdrant is unavailable, the service falls back to local database search.
 
 ## AI Assistant API
 
@@ -82,6 +106,7 @@ Analytics are computed from persisted documents, entities, and relationships. Th
 - `POST /api/evaluation/check-answer` - compare an answer against cited chunks and return grounding risk signals.
 
 The first evaluation framework is deterministic and local. It does not call external AI providers, which keeps regression tests repeatable. Answer benchmarks measure expected-term coverage, citation validity, unsupported-term rate, hallucination risk, no-answer behavior, and pass/fail status.
+When Qdrant is enabled, retrieval evaluation also records `qdrant_local_result_overlap`, `qdrant_local_top_result_match`, and `qdrant_result_count_delta` so ranking differences are visible in metric history.
 
 ## Audit API
 
@@ -105,4 +130,6 @@ Set `DATABASE_URL` in `.env` for PostgreSQL. The default application setting use
 alembic upgrade head
 ```
 
-The FastAPI app also initializes tables on startup for lightweight local development. Use Alembic migrations for shared or production-style databases.
+The FastAPI app initializes tables on startup only when `APP_ENVIRONMENT=development` and `DATABASE_AUTO_CREATE_TABLES=true`. Use Alembic migrations for shared or production-style databases. Run `python ../scripts/check_migration_drift.py` from the repository root to verify model/migration alignment.
+
+Backup, restore, and reset helpers live in `scripts/`; see `docs/OPERATIONS_DEPLOYMENT.md`.

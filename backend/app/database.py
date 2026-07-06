@@ -37,9 +37,12 @@ def init_db() -> None:
         matter_membership,
         relationship,
         role,
+        saved_search,
         user,
     )
 
+    if not settings.database_auto_create_tables or settings.app_environment.lower() in {"production", "prod"}:
+        return
     Base.metadata.create_all(bind=engine)
 
 

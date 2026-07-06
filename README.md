@@ -48,6 +48,36 @@ npm install
 npm run build
 ```
 
+Repeatable smoke checks:
+
+```powershell
+python scripts/smoke_check.py
+python scripts/smoke_check.py --frontend
+python scripts/smoke_check.py --synthetic-evaluation
+```
+
+CI runs backend tests, backend compile checks, Alembic migration checks, and the frontend production build. A manual CI option runs Docker-backed Qdrant integration checks.
+
+Developer runtime notes, cleanup commands, task aliases, and the bundled Codex desktop runtime workaround are documented in `docs/DEVELOPER_ENVIRONMENT.md`.
+
+## Docker Compose
+
+App-only with SQLite:
+
+```powershell
+docker compose --profile app up --build
+```
+
+App with Postgres and Qdrant:
+
+```powershell
+$env:DATABASE_URL="postgresql+psycopg://postgres:postgres@postgres:5432/ediscovery"
+$env:QDRANT_ENABLED="true"
+docker compose --profile full up --build
+```
+
+Operational notes, environment variables, backup/restore commands, and health checks are documented in `docs/OPERATIONS_DEPLOYMENT.md`.
+
 ## Notes
 
 Keep real client data out of the repo. Use `data/samples/` for synthetic or approved test material only.

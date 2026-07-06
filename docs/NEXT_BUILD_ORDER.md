@@ -2,7 +2,13 @@
 
 Date: 2026-06-19
 
-Update 2026-06-21: Build-order steps 1 through 4 have been completed at first-pass hardening level. The frontend build is verified, persisted users/roles/matter memberships are implemented, security/data-handling docs are updated, and audit filtering/export/retention plus a review UI are in place. The next highest-priority item is Docker-backed Qdrant integration testing.
+Update 2026-06-21: Build-order steps 1 through 4 have been completed at first-pass hardening level. The frontend build is verified, persisted users/roles/matter memberships are implemented, security/data-handling docs are updated, and audit filtering/export/retention plus a review UI are in place.
+
+Update 2026-06-23: Build-order steps 5 and 6 are implemented at first-pass level. Qdrant-backed integration coverage now verifies indexing, citation hydration, fallback behavior, and local-versus-Qdrant evaluation comparison metrics when Docker Qdrant is available. The frontend now includes `/evaluation` for benchmark run controls, metric history, pass/fail review, answer-quality signals, and Qdrant comparison signals.
+
+Update 2026-06-23: Build-order steps 7 and 8 are implemented at first-pass level. PDF OCR can run through a configured local command, scanned PDFs retain clear OCR status/warnings when OCR is unavailable, supported EML binary attachments are recursively text-extracted, and unsupported attachments produce processing warnings. Search now supports custodian, document date, document type, file type, and status filters, plus persisted saved searches with frontend controls and audit events.
+
+Update 2026-06-23: Build-order steps 9 and 10 are implemented at first-pass level. The graph view now uses a deterministic force/cluster layout for denser matters while preserving filters, selection, relationship review, and empty/loading/error states. CI now verifies backend tests, compile checks, Alembic migrations, and frontend builds, with a manual Docker-backed Qdrant smoke job and a local `scripts/smoke_check.py` runner.
 
 ## Current Position
 
@@ -122,6 +128,8 @@ Done when:
 
 Priority: high
 
+Status: first pass implemented on 2026-06-23.
+
 Why this comes next:
 
 - Qdrant indexing and query support now exists.
@@ -146,6 +154,8 @@ Done when:
 
 Priority: medium-high
 
+Status: first pass implemented on 2026-06-23.
+
 Why this comes next:
 
 - The backend has deterministic retrieval and answer-quality metrics.
@@ -168,6 +178,8 @@ Done when:
 ### 7. Add True OCR And Attachment Extraction
 
 Priority: medium-high
+
+Status: first pass implemented on 2026-06-23.
 
 Why this comes next:
 
@@ -194,6 +206,8 @@ Done when:
 
 Priority: medium
 
+Status: first pass implemented on 2026-06-23.
+
 Why this comes next:
 
 - Basic search works.
@@ -215,6 +229,8 @@ Done when:
 
 Priority: medium
 
+Status: first pass implemented on 2026-06-23.
+
 Why this comes next:
 
 - The graph view is usable for small matters.
@@ -234,6 +250,8 @@ Done when:
 ### 10. Add CI And Repeatable Smoke Checks
 
 Priority: medium
+
+Status: first pass implemented on 2026-06-23.
 
 Why this matters:
 

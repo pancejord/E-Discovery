@@ -60,6 +60,8 @@ def test_knowledge_graph_endpoints_return_visualization_data(client: TestClient)
     node_labels = {node["label"] for node in graph["nodes"]}
     assert {"Jane Smith", "Acme Corp", "John Doe"} <= node_labels
     assert any(edge["relationship_type"] == "mentioned_with" for edge in graph["edges"])
+    assert any(edge["relationship_type"] == "associated_with" for edge in graph["edges"])
+    assert any(edge["confidence_explanations"] for edge in graph["edges"])
 
     acme = next(node for node in graph["nodes"] if node["label"] == "Acme Corp")
     jane = next(node for node in graph["nodes"] if node["label"] == "Jane Smith")
@@ -83,6 +85,50 @@ def test_knowledge_graph_endpoints_return_visualization_data(client: TestClient)
     metrics_response = client.get("/api/graph/metrics")
     assert metrics_response.status_code == 200
     assert metrics_response.json()["node_count"] == graph["metrics"]["node_count"]
+
+    paged_response = client.get("/api/graph", params={"entity_limit": 2, "entity_offset": 0})
+    assert paged_response.status_code == 200
+    assert len(paged_response.json()["nodes"]) <= 2
+
+
+def test_entity_merge_and_split_review_workflows(client: TestClient) -> None:
+    document_text = "Jane Smith met Jane Smith and John Doe at Acme Corp."
+    upload_response = client.post(
+        "/documents/upload",
+        files={"file": ("entity-review.txt", document_text.encode("utf-8"), "text/plain")},
+    )
+    assert upload_response.status_code == 200
+
+    entities_response = client.get("/api/entities")
+    assert entities_response.status_code == 200
+    entities = entities_response.json()
+    jane = next(entity for entity in entities if entity["name"] == "Jane Smith")
+    john = next(entity for entity in entities if entity["name"] == "John Doe")
+
+    merge_response = client.post(f"/api/entities/{john['id']}/merge", json={"target_entity_id": jane["id"]})
+    assert merge_response.status_code == 200
+    merged = merge_response.json()
+    assert merged["id"] == jane["id"]
+    assert merged["review_status"] == "reviewed"
+
+    john_detail = client.get(f"/api/entities/{john['id']}").json()
+    assert john_detail["alias_of_entity_id"] == jane["id"]
+    assert john_detail["review_status"] == "merged"
+
+    mention_id = merged["mentions"][0]["id"]
+    split_response = client.post(
+        f"/api/entities/{jane['id']}/split",
+        json={"name": "Jane A. Smith", "entity_type": "PERSON", "mention_ids": [mention_id]},
+    )
+    assert split_response.status_code == 200
+    split = split_response.json()
+    assert split["name"] == "Jane A. Smith"
+    assert split["review_status"] == "reviewed"
+    assert split["extraction_provider"] == "review_split"
+
+    audit_response = client.get("/api/audit", params={"action": "entity.split"})
+    assert audit_response.status_code == 200
+    assert audit_response.json()
 
 
 def test_graph_rejects_invalid_depth(client: TestClient) -> None:
